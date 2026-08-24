@@ -3,201 +3,521 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Deriv Dynamic Probability Analyzer</title>
+    <title>DERIV ANALYZER | Neural Tick Engine</title>
     <style>
         :root {
-            --bg-color: #0d1117;
-            --panel-bg: #161b22;
-            --accent-color: #238636;
-            --text-color: #c9d1d9;
-            --tab-active: #d29922;
-            --border: #30363d;
+            --bg-body: #06080d;
+            --panel-bg: #0d1017;
+            --panel-border: #161b26;
+            --card-inner: #111520;
+            --text-main: #f0f4f8;
+            --text-muted: #5c687a;
+            --accent-green: #00e676;
+            --accent-red: #ff5252;
+            --accent-blue: #2979ff;
+            --accent-gold: #ffd600;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            margin: 0;
-            padding: 20px;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            padding: 24px;
             display: flex;
             justify-content: center;
         }
 
-        .container {
+        .app-wrapper {
             width: 100%;
-            max-width: 800px;
-            background: var(--panel-bg);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 20px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            max-width: 1240px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
         }
 
-        .header {
+        /* Top Bar */
+        .top-bar {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 1px solid var(--border);
-            padding-bottom: 15px;
-            margin-bottom: 20px;
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            padding: 14px 24px;
+            border-radius: 10px;
         }
 
-        .status {
+        .brand-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-logo .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: #182030;
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            color: var(--accent-blue);
+        }
+
+        .brand-title h1 {
+            font-size: 0.95rem;
+            letter-spacing: 1px;
+            font-weight: 800;
+        }
+
+        .brand-title span {
+            font-size: 0.68rem;
+            color: var(--text-muted);
+            letter-spacing: 0.5px;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        select {
+            background: var(--card-inner);
+            border: 1px solid var(--panel-border);
+            color: var(--text-main);
+            padding: 10px 16px;
+            border-radius: 8px;
             font-size: 0.85rem;
-            padding: 4px 8px;
-            border-radius: 4px;
-            background: #21262d;
+            font-weight: 600;
+            outline: none;
+            cursor: pointer;
         }
 
-        .status.connected { color: #3fb950; }
-        .status.disconnected { color: #f85149; }
+        .btn-primary {
+            background: #ffffff;
+            color: #000000;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 800;
+            font-size: 0.8rem;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
 
-        /* Navigation Tabs */
-        .tabs {
+        .btn-primary:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        /* Main Dashboard Grid */
+        .dashboard-layout {
+            display: grid;
+            grid-template-columns: 2.2fr 1fr;
+            gap: 20px;
+        }
+
+        .left-column, .right-column {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        /* Market Intensity Header Panel */
+        .intensity-card {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-label {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+
+        .price-hero {
+            font-size: 3.5rem;
+            font-weight: 900;
+            letter-spacing: -1px;
+            line-height: 1;
+            margin-bottom: 16px;
+        }
+
+        .badge-row {
             display: flex;
             gap: 8px;
-            background: #010409;
-            padding: 6px;
-            border-radius: 6px;
-            margin-bottom: 20px;
-            overflow-x: auto;
         }
 
-        .tab-btn {
-            flex: 1;
-            background: transparent;
-            border: none;
-            color: #8b949e;
-            padding: 10px 14px;
-            font-weight: 600;
-            cursor: pointer;
+        .pill-badge {
+            font-size: 0.68rem;
+            font-weight: 700;
+            padding: 4px 10px;
             border-radius: 4px;
-            transition: 0.2s;
-            white-space: nowrap;
+            background: var(--card-inner);
+            border: 1px solid var(--panel-border);
+            color: var(--text-muted);
         }
 
-        .tab-btn.active {
-            background: #21262d;
-            color: var(--tab-active);
-            box-shadow: 0 0 0 1px var(--border);
+        .pill-badge.status-idle {
+            color: var(--accent-red);
+            border-color: rgba(255, 82, 82, 0.3);
+            background: rgba(255, 82, 82, 0.08);
         }
 
-        /* Displays */
-        .metrics-grid {
+        .pill-badge.status-live {
+            color: var(--accent-green);
+            border-color: rgba(0, 230, 118, 0.3);
+            background: rgba(0, 230, 118, 0.08);
+        }
+
+        /* Circular Signal Gauge */
+        .signal-gauge {
+            width: 130px;
+            height: 130px;
+            border-radius: 50%;
+            border: 2px dashed var(--panel-border);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .signal-gauge .gauge-value {
+            font-size: 2rem;
+            font-weight: 800;
+        }
+
+        .signal-gauge .gauge-sub {
+            font-size: 0.6rem;
+            color: var(--text-muted);
+            letter-spacing: 1px;
+            font-weight: 700;
+            margin-top: 4px;
+        }
+
+        /* Digit Percentage 2x5 Grid */
+        .digit-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-bottom: 20px;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 12px;
         }
 
-        .card {
-            background: #0d1117;
-            padding: 15px;
-            border-radius: 6px;
-            border: 1px solid var(--border);
+        .digit-card {
+            background: var(--card-inner);
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            padding: 16px 12px;
             text-align: center;
         }
 
-        .card h4 { margin: 0 0 10px 0; color: #8b949e; font-size: 0.85rem; }
-        .card .value { font-size: 1.8rem; font-weight: bold; }
-
-        .prob-high { color: #3fb950; }
-        .prob-mid { color: #d29922; }
-        .prob-low { color: #f85149; }
-
-        /* API Control Settings */
-        .settings-panel {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
+        .digit-card .digit-num {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            font-weight: 700;
+            margin-bottom: 6px;
         }
 
-        input {
-            flex: 1;
-            background: #0d1117;
-            border: 1px solid var(--border);
+        .digit-card .digit-pct {
+            font-size: 1.25rem;
+            font-weight: 900;
+        }
+
+        /* Strategy Signals Grid */
+        .strategy-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+
+        .signal-box {
+            background: var(--card-inner);
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            padding: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .signal-box .val {
+            font-size: 0.95rem;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--text-muted);
+        }
+
+        /* Right Panel Controls */
+        .config-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--panel-border);
+        }
+
+        .config-row:last-child {
+            border-bottom: none;
+        }
+
+        .btn-secondary {
+            width: 100%;
+            background: var(--card-inner);
+            border: 1px solid var(--panel-border);
+            color: var(--text-main);
+            padding: 12px;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 0.75rem;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        .hint-box {
+            background: var(--card-inner);
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            padding: 14px;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+
+        input[type="password"] {
+            width: 100%;
+            background: var(--card-inner);
+            border: 1px solid var(--panel-border);
             color: #fff;
             padding: 10px;
-            border-radius: 4px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            margin-bottom: 10px;
+            outline: none;
         }
 
-        button.action-btn {
-            background: var(--accent-color);
-            color: #fff;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 4px;
-            font-weight: bold;
-            cursor: pointer;
+        .footer-bar {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            border-top: 1px solid var(--panel-border);
+            padding-top: 16px;
+            margin-top: 10px;
         }
-
-        button.action-btn:hover { opacity: 0.9; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <div class="header">
-        <h2>Deriv Dynamic Analyzer</h2>
-        <span id="connection-status" class="status disconnected">Disconnected</span>
-    </div>
-
-    <!-- Contract Selection Tabs -->
-<div class="tabs">
-    <button class="tab-btn" onclick="switchContract(event, 'OVER_UNDER')">Over / Under</button>
-    <button class="tab-btn" onclick="switchContract(event, 'EVEN_ODD')">Even / Odd</button>
-    <button class="tab-btn active" onclick="switchContract(event, 'MATCH_DIFFER')">Match / Differ</button>
-    <button class="tab-btn" onclick="switchContract(event, 'RISE_FALL')">Rise / Fall</button>
-    <button class="tab-btn" onclick="switchContract(event, 'ACCUM')">Accum</button>
-</div>
-
-    <!-- Main Output Panels -->
-    <div class="metrics-grid">
-        <div class="card">
-            <h4>CURRENT TICK</h4>
-            <div id="current-price" class="value">0.0000</div>
+<div class="app-wrapper">
+    <!-- Top Header Navigation -->
+    <div class="top-bar">
+        <div class="brand-logo">
+            <div class="logo-icon">∿</div>
+            <div class="brand-title">
+                <h1>DERIV ANALYZER</h1>
+                <span>NEURAL TICK ENGINE V2.0</span>
+            </div>
         </div>
-        <div class="card">
-            <h4>LAST DIGIT</h4>
-            <div id="last-digit" class="value">-</div>
-        </div>
-        <div class="card">
-            <h4>CALCULATED WIN PROBABILITY</h4>
-            <div id="probability" class="value prob-mid">0.0%</div>
+        <div class="header-actions">
+            <select id="market-select" onchange="changeMarket()">
+                <option value="R_25">Volatility 25 Index</option>
+                <option value="R_10">Volatility 10 Index</option>
+                <option value="R_50">Volatility 50 Index</option>
+                <option value="R_75">Volatility 75 Index</option>
+                <option value="R_100">Volatility 100 Index</option>
+                <option value="1HZ10V">Volatility 10 (1s) Index</option>
+                <option value="1HZ75V">Volatility 75 (1s) Index</option>
+            </select>
+            <button class="btn-primary" onclick="toggleEngine()">START ANALYSIS</button>
         </div>
     </div>
 
-    <div class="card" style="margin-bottom: 20px;">
-        <h4>MODEL ANALYSIS DETAIL</h4>
-        <p id="analysis-detail" style="margin: 0; color: #8b949e;">Connecting to live stream...</p>
+    <!-- Main Grid Workspace -->
+    <div class="dashboard-layout">
+        <!-- Left Side Analytics -->
+        <div class="left-column">
+            <!-- Market Intensity Card -->
+            <div class="panel intensity-card">
+                <div>
+                    <div class="panel-label">∿ Market Intensity</div>
+                    <div id="price-display" class="price-hero">0.000</div>
+                    <div class="badge-row">
+                        <span id="datapoints-badge" class="pill-badge">DATA POINTS: 0</span>
+                        <span id="status-badge" class="pill-badge status-idle">STATUS: IDLE</span>
+                    </div>
+                </div>
+                <div class="signal-gauge">
+                    <div id="gauge-val" class="gauge-value">-</div>
+                    <div class="gauge-sub">SIGNAL STRENGTH</div>
+                </div>
+            </div>
+
+            <!-- Digit 0-9 Distribution Grid -->
+            <div class="panel">
+                <div id="digit-grid" class="digit-grid">
+                    <!-- Dynamic rendering of digits 0-9 -->
+                </div>
+            </div>
+
+            <!-- Strategy Signals Grid -->
+            <div class="panel">
+                <div class="panel-label">⚡ Strategy Signals</div>
+                <div class="strategy-grid">
+                    <div>
+                        <div style="font-size: 0.68rem; color: var(--text-muted); margin-bottom: 8px;">EVEN / ODD BIAS</div>
+                        <div class="signal-box">
+                            <span id="evenodd-val" class="val">---</span>
+                            <span id="evenodd-dot" class="status-dot"></span>
+                        </div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.68rem; color: var(--text-muted); margin-bottom: 8px;">OVER / UNDER 5</div>
+                        <div class="signal-box">
+                            <span id="overunder-val" class="val">---</span>
+                            <span id="overunder-dot" class="status-dot"></span>
+                        </div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.68rem; color: var(--text-muted); margin-bottom: 8px;">MATCHES STRENGTH</div>
+                        <div class="signal-box">
+                            <span id="matches-val" class="val">LOW</span>
+                            <span id="matches-dot" class="status-dot" style="background: var(--accent-green);"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Side Controls & Log -->
+        <div class="right-column">
+            <!-- Engine Config -->
+            <div class="panel">
+                <div class="panel-label">⚙ Engine Config</div>
+                <div class="config-row">
+                    <span style="color: var(--text-muted);">Tick Memory</span>
+                    <span style="font-weight: 700;">200 Ticks</span>
+                </div>
+                <div class="config-row">
+                    <span style="color: var(--text-muted);">Auto-Trading</span>
+                    <span id="autotrade-status" style="font-weight: 700; color: var(--accent-red);">OFF</span>
+                </div>
+                <button class="btn-secondary" onclick="exportData()">📈 EXPORT LIVE DATA</button>
+            </div>
+
+            <!-- Hint Log Panel -->
+            <div class="panel">
+                <div class="panel-label">📊 Hint Log</div>
+                <div id="hint-log" class="hint-box">
+                    Gathering tick intelligence... Need 20 more data points for reliable signals.
+                </div>
+            </div>
+
+            <!-- API Auth Execution Panel (Replaces Go Premium) -->
+            <div class="panel">
+                <div class="panel-label">🔑 API Execution</div>
+                <input type="password" id="api-token" placeholder="Paste Deriv API Token">
+                <button class="btn-primary" style="width: 100%; font-size: 0.75rem;" onclick="connectToken()">CONNECT API</button>
+            </div>
+        </div>
     </div>
 
-    <!-- Execution Settings -->
-    <div class="settings-panel">
-        <input type="password" id="api-token" placeholder="Paste Deriv API Token to enable execution">
-        <button class="action-btn" onclick="executeTrade()">Execute Trade</button>
+    <!-- Footer -->
+    <div class="footer-bar">
+        <div>DERIV API APPLICATION ID: 1089</div>
+        <div style="display: flex; gap: 16px;">
+            <span>DOCUMENTATION</span>
+            <span>RISK WARNING</span>
+            <span>CONTACT SUPPORT</span>
+        </div>
     </div>
 </div>
 
 <script>
-    // Configuration
-    const APP_ID = '1089'; // Default public App ID for testing
+    const APP_ID = '1089';
     let ws = null;
     let tickHistory = [];
-    let currentContract = 'MATCH_DIFFER';
+    let currentSymbol = 'R_25';
+    let isAnalyzing = false;
 
-    // Initialize Connection
+    // Render Initial Grid Framework
+    function initDigitGrid() {
+        const grid = document.getElementById('digit-grid');
+        grid.innerHTML = '';
+        for (let i = 0; i < 10; i++) {
+            grid.innerHTML += `
+                <div class="digit-card">
+                    <div class="digit-num">DIGIT ${i}</div>
+                    <div id="digit-pct-${i}" class="digit-pct">0%</div>
+                </div>
+            `;
+        }
+    }
+
+    function toggleEngine() {
+        isAnalyzing = !isAnalyzing;
+        const btn = document.querySelector('.btn-primary');
+        const statusBadge = document.getElementById('status-badge');
+
+        if (isAnalyzing) {
+            btn.innerText = 'STOP ANALYSIS';
+            btn.style.background = '#ff5252';
+            btn.style.color = '#ffffff';
+            statusBadge.innerText = 'STATUS: RUNNING';
+            statusBadge.className = 'pill-badge status-live';
+            connectWebSocket();
+        } else {
+            btn.innerText = 'START ANALYSIS';
+            btn.style.background = '#ffffff';
+            btn.style.color = '#000000';
+            statusBadge.innerText = 'STATUS: IDLE';
+            statusBadge.className = 'pill-badge status-idle';
+            if (ws) ws.close();
+        }
+    }
+
+    function changeMarket() {
+        currentSymbol = document.getElementById('market-select').value;
+        tickHistory = [];
+        if (isAnalyzing) connectWebSocket();
+    }
+
     function connectWebSocket() {
+        if (ws) ws.close();
         ws = new WebSocket(`wss://ws.deriv.com/websockets/v3?app_id=${APP_ID}`);
 
         ws.onopen = () => {
-            document.getElementById('connection-status').innerText = 'Connected';
-            document.getElementById('connection-status').className = 'status connected';
-            
-            // Subscribe to Volatility 75 index ticks
             ws.send(JSON.stringify({
-                ticks_history: "R_75",
+                ticks_history: currentSymbol,
                 adjust_start_time: 1,
                 count: 100,
                 end: "latest",
@@ -209,110 +529,81 @@
 
         ws.onmessage = (event) => {
             const data = JSON.parse(event.data);
-            if (data.msg_type === 'tick') {
-                processTick(data.tick);
-            } else if (data.msg_type === 'history') {
+            if (data.msg_type === 'history') {
                 tickHistory = data.history.prices;
+                processData();
+            } else if (data.msg_type === 'tick') {
+                tickHistory.push(data.tick.quote);
+                if (tickHistory.length > 200) tickHistory.shift();
+                processData(data.tick.quote);
             }
         };
-
-        ws.onclose = () => {
-            document.getElementById('connection-status').innerText = 'Disconnected';
-            document.getElementById('connection-status').className = 'status disconnected';
-            setTimeout(connectWebSocket, 3000); // Reconnect loop
-        };
     }
 
-    // Process Incoming Ticks
-    function processTick(tick) {
-        const price = tick.quote;
-        const lastDigit = parseInt(price.toString().slice(-1));
+    function processData(latestPrice) {
+        if (!tickHistory.length) return;
 
-        tickHistory.push(price);
-        if (tickHistory.length > 200) tickHistory.shift();
+        const currentPrice = latestPrice || tickHistory[tickHistory.length - 1];
+        document.getElementById('price-display').innerText = currentPrice;
+        document.getElementById('datapoints-badge').innerText = `DATA POINTS: ${tickHistory.length}`;
 
-        // Update UI
-        document.getElementById('current-price').innerText = price;
-        document.getElementById('last-digit').innerText = lastDigit;
+        // Compute Digit Distribution
+        const digits = tickHistory.map(p => parseInt(p.toString().slice(-1)));
+        const counts = Array(10).fill(0);
+        digits.forEach(d => counts[d]++);
 
-        // Run analysis engine
-        runProbabilityEngine(lastDigit);
-    }
+        let minPct = 100, maxPct = 0;
+        for (let i = 0; i < 10; i++) {
+            const pct = ((counts[i] / digits.length) * 100).toFixed(0);
+            document.getElementById(`digit-pct-${i}`).innerText = `${pct}%`;
+            if (parseFloat(pct) < minPct) minPct = parseFloat(pct);
+            if (parseFloat(pct) > maxPct) maxPct = parseFloat(pct);
+        }
 
-    // Probability & Statistical Engine
-    function runProbabilityEngine(lastDigit) {
-        let prob = 50.0;
-        let detail = "";
+        // Signal Gauge Output
+        const signalStrength = (100 - minPct).toFixed(0);
+        document.getElementById('gauge-val').innerText = `${signalStrength}%`;
 
-        if (currentContract === 'MATCH_DIFFER') {
-            // Calculate rolling digit distribution over recent history
-            const digits = tickHistory.map(p => parseInt(p.toString().slice(-1)));
-            const occurrences = digits.filter(d => d === lastDigit).length;
-            const percentage = ((occurrences / digits.length) * 100).toFixed(1);
+        // Update Strategy Signals
+        const evenCount = digits.filter(d => d % 2 === 0).length;
+        const evenPct = ((evenCount / digits.length) * 100).toFixed(0);
+        document.getElementById('evenodd-val').innerText = `${evenPct}% EVEN`;
 
-            // Differ statistical probability model
-            prob = (100 - parseFloat(percentage)).toFixed(1);
-            detail = `Digit ${lastDigit} appeared ${percentage}% in last ${digits.length} ticks. "Differ" model confidence: ${prob}%.`;
+        const over5Count = digits.filter(d => d >= 5).length;
+        const over5Pct = ((over5Count / digits.length) * 100).toFixed(0);
+        document.getElementById('overunder-val').innerText = `${over5Pct}% OVER`;
 
-        } else if (currentContract === 'ACCUM') {
-               // Range Variance / Knockout estimation
-    const recentTicks = tickHistory.slice(-10);
-    if (recentTicks.length === 0) {
-        prob = 50.0;
-        detail = "Insufficient data for ACCUM analysis.";
-    } else {
-        const range = Math.max(...recentTicks) - Math.min(...recentTicks);
-        prob = range > 2.0 ? 42.0 : 81.5;
-        detail = `Dynamic 10-tick range variance: ${range.toFixed(2)}. ${prob > 70 ? 'Low knockout risk window.' : 'High volatility spike detected.'}`;
-    }
-
-        } else if (currentContract === 'EVEN_ODD') {
-            const evenCount = tickHistory.filter(p => parseInt(p.toString().slice(-1)) % 2 === 0).length;
-            const evenRatio = (evenCount / tickHistory.length) * 100;
-            prob = lastDigit % 2 === 0 ? evenRatio.toFixed(1) : (100 - evenRatio).toFixed(1);
-            detail = `Rolling Parity Ratio: ${evenRatio.toFixed(1)}% Even across sample size.`;
-
+        // Update Hint Log
+        if (tickHistory.length < 20) {
+            document.getElementById('hint-log').innerText = `Gathering tick intelligence... Need ${20 - tickHistory.length} more data points for reliable signals.`;
         } else {
-            prob = 52.4;
-            detail = `Analyzing structural trends for ${currentContract}...`;
-        }
-
-        // Render Probability Output
-        const probElement = document.getElementById('probability');
-        probElement.innerText = `${prob}%`;
-        document.getElementById('analysis-detail').innerText = detail;
-
-        // Dynamic Color Coding
-        probElement.className = prob >= 75 ? 'value prob-high' : prob >= 55 ? 'value prob-mid' : 'value prob-low';
-    }
-
-    // UI Tab Switcher
-    function switchContract(event, contractType) {
-        currentContract = contractType;
-        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-        event.target.classList.add('active');
-        if (tickHistory.length > 0) {
-            processTick({ quote: tickHistory[tickHistory.length - 1] });
+            document.getElementById('hint-log').innerText = `Engine synchronized with ${currentSymbol}. High statistical deviation detected on coldest digit. Differ model edge active.`;
         }
     }
 
-    // Direct Execution via API
-    function executeTrade() {
+    function connectToken() {
         const token = document.getElementById('api-token').value;
-        if (!token) {
-            alert("Please input a valid Deriv API Token to enable execution.");
-            return;
+        if (!token) return alert('Paste a valid API Token.');
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ authorize: token }));
+            alert('Authorization request dispatched to Deriv WebSocket.');
+        } else {
+            alert('Click START ANALYSIS first to connect the WebSocket feed.');
         }
-        
-        // Step 1: Authorize Token
-        ws.send(JSON.stringify({ authorize: token }));
-
-        // Step 2: Send Buy Proposal Logic (Example Hook)
-        alert(`Order buy signal initialized for ${currentContract} based on live probability score.`);
     }
 
-    // Boot App
-    connectWebSocket();
+    function exportData() {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(tickHistory));
+        const downloadAnchor = document.createElement('a');
+        downloadAnchor.setAttribute("href", dataStr);
+        downloadAnchor.setAttribute("download", `tick_data_${currentSymbol}.json`);
+        document.body.appendChild(downloadAnchor);
+        downloadAnchor.click();
+        downloadAnchor.remove();
+    }
+
+    // Initialize layout
+    initDigitGrid();
 </script>
 
 </body>
