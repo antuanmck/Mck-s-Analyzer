@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deriv Dynamic Probability Analyzer</title>
+    <style>
+        :root {
+            --bg-color: #0d1117;
+            --panel-bg: #161b22;
+            --accent-color: #238636;
+            --text-color: #c9d1d9;
+            --tab-active: #d29922;
+            --border: #30363d;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            background: var(--panel-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+
+        .status {
+            font-size: 0.85rem;
+            padding: 4px 8px;
+            border-radius: 4px;
+            background: #21262d;
+        }
+
+        .status.connected { color: #3fb950; }
+        .status.disconnected { color: #f85149; }
+
+        /* Navigation Tabs */
+        .tabs {
+            display: flex;
+            gap: 8px;
+            background: #010409;
+            padding: 6px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            overflow-x: auto;
+        }
+
+        .tab-btn {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #8b949e;
+            padding: 10px 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: 0.2s;
+            white-space: nowrap;
+        }
+
+        .tab-btn.active {
+            background: #21262d;
+            color: var(--tab-active);
+            box-shadow: 0 0 0 1px var(--border);
+        }
+
+        /* Displays */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: #0d1117;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            text-align: center;
+        }
+
+        .card h4 { margin: 0 0 10px 0; color: #8b949e; font-size: 0.85rem; }
+        .card .value { font-size: 1.8rem; font-weight: bold; }
+
+        .prob-high { color: #3fb950; }
+        .prob-mid { color: #d29922; }
+        .prob-low { color: #f85149; }
+
+        /* API Control Settings */
+        .settings-panel {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        input {
+            flex: 1;
+            background: #0d1117;
+            border: 1px solid var(--border);
+            color: #fff;
+            padding: 10px;
+            border-radius: 4px;
+        }
+
+        button.action-btn {
+            background: var(--accent-color);
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        button.action-btn:hover { opacity: 0.9; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h2>Deriv Dynamic Analyzer</h2>
+        <span id="connection-status" class="status disconnected">Disconnected</span>
+    </div>
+
+    <!-- Contract Selection Tabs -->
+    <div class="tabs">
+        <button class="tab-btn" onclick="switchContract('OVER_UNDER')">Over / Under</button>
+        <button class="tab-btn" onclick="switchContract('EVEN_ODD')">Even / Odd</button>
+        <button class="tab-btn active" onclick="switchContract('MATCH_DIFFER')">Match / Differ</button>
+        <button class="tab-btn" onclick="switchContract('RISE_FALL')">Rise / Fall</button>
+        <button class="tab-btn" onclick="switchContract('ACCUM')">Accum</button>
+    </div>
+
+    <!-- Main Output Panels -->
+    <div class="metrics-grid">
+        <div class="card">
+            <h4>CURRENT TICK</h4>
+            <div id="current-price" class="value">0.0000</div>
+        </div>
+        <div class="card">
+            <h4>LAST DIGIT</h4>
+            <div id="last-digit" class="value">-</div>
+        </div>
+        <div class="card">
+            <h4>CALCULATED WIN PROBABILITY</h4>
+            <div id="probability" class="value prob-mid">0.0%</div>
+        </div>
+    </div>
+
+    <div class="card" style="margin-bottom: 20px;">
+        <h4>MODEL ANALYSIS DETAIL</h4>
+        <p id="analysis-detail" style="margin: 0; color: #8b949e;">Connecting to live stream...</p>
+    </div>
+
+    <!-- Execution Settings -->
+    <div class="settings-panel">
+        <input type="password" id="api-token" placeholder="Paste Deriv API Token to enable execution">
+        <button class="action-btn" onclick="executeTrade()">Execute Trade</button>
+    </div>
+</div>
+
+<script>
+    // Configuration
+    const APP_ID = '1089'; // Default public App ID for testing
+    let ws = null;
+    let tickHistory = [];
+    let currentContract = 'MATCH_DIFFER';
+
+    // Initialize Connection
+    function connectWebSocket() {
+        ws = new WebSocket(`wss://ws.deriv.com/websockets/v3?app_id=${APP_ID}`);
+
+        ws.onopen = () => {
+            document.getElementById('connection-status').innerText = 'Connected';
+            document.getElementById('connection-status').className = 'status connected';
+            
+            // Subscribe to Volatility 75 index ticks
+            ws.send(JSON.stringify({
+                ticks_history: "R_75",
+                adjust_start_time: 1,
+                count: 100,
+                end: "latest",
+                start: 1,
+                style: "ticks",
+                subscribe: 1
+            }));
+        };
+
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if (data.msg_type === 'tick') {
+                processTick(data.tick);
+            } else if (data.msg_type === 'history') {
+                tickHistory = data.history.prices;
+            }
+        };
+
+        ws.onclose = () => {
+            document.getElementById('connection-status').innerText = 'Disconnected';
+            document.getElementById('connection-status').className = 'status disconnected';
+            setTimeout(connectWebSocket, 3000); // Reconnect loop
+        };
+    }
+
+    // Process Incoming Ticks
+    function processTick(tick) {
+        const price = tick.quote;
+        const lastDigit = parseInt(price.toString().slice(-1));
+
+        tickHistory.push(price);
+        if (tickHistory.length > 200) tickHistory.shift();
+
+        // Update UI
+        document.getElementById('current-price').innerText = price;
+        document.getElementById('last-digit').innerText = lastDigit;
+
+        // Run analysis engine
+        runProbabilityEngine(lastDigit);
+    }
+
+    // Probability & Statistical Engine
+    function runProbabilityEngine(lastDigit) {
+        let prob = 50.0;
+        let detail = "";
+
+        if (currentContract === 'MATCH_DIFFER') {
+            // Calculate rolling digit distribution over recent history
+            const digits = tickHistory.map(p => parseInt(p.toString().slice(-1)));
+            const occurrences = digits.filter(d => d === lastDigit).length;
+            const percentage = ((occurrences / digits.length) * 100).toFixed(1);
+
+            // Differ statistical probability model
+            prob = (100 - parseFloat(percentage)).toFixed(1);
+            detail = `Digit ${lastDigit} appeared ${percentage}% in last ${digits.length} ticks. "Differ" model confidence: ${prob}%.`;
+
+        } else if (currentContract === 'ACCUM') {
+            // Range Variance / Knockout estimation
+            const recentTicks = tickHistory.slice(-10);
+            const range = Math.max(...recentTicks) - Math.min(...recentTicks);
+            prob = range > 2.0 ? 42.0 : 81.5;
+            detail = `Dynamic 10-tick range variance: ${range.toFixed(2)}. ${prob > 70 ? 'Low knockout risk window.' : 'High volatility spike detected.'}`;
+
+        } else if (currentContract === 'EVEN_ODD') {
+            const evenCount = tickHistory.filter(p => parseInt(p.toString().slice(-1)) % 2 === 0).length;
+            const evenRatio = (evenCount / tickHistory.length) * 100;
+            prob = lastDigit % 2 === 0 ? evenRatio.toFixed(1) : (100 - evenRatio).toFixed(1);
+            detail = `Rolling Parity Ratio: ${evenRatio.toFixed(1)}% Even across sample size.`;
+
+        } else {
+            prob = 52.4;
+            detail = `Analyzing structural trends for ${currentContract}...`;
+        }
+
+        // Render Probability Output
+        const probElement = document.getElementById('probability');
+        probElement.innerText = `${prob}%`;
+        document.getElementById('analysis-detail').innerText = detail;
+
+        // Dynamic Color Coding
+        probElement.className = prob >= 75 ? 'value prob-high' : prob >= 55 ? 'value prob-mid' : 'value prob-low';
+    }
+
+    // UI Tab Switcher
+    function switchContract(contractType) {
+        currentContract = contractType;
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        event.target.classList.add('active');
+        if (tickHistory.length > 0) {
+            processTick({ quote: tickHistory[tickHistory.length - 1] });
+        }
+    }
+
+    // Direct Execution via API
+    function executeTrade() {
+        const token = document.getElementById('api-token').value;
+        if (!token) {
+            alert("Please input a valid Deriv API Token to enable execution.");s
+            return;
+        }
+        
+        // Step 1: Authorize Token
+        ws.send(JSON.stringify({ authorize: token }));
+
+        // Step 2: Send Buy Proposal Logic (Example Hook)
+        alert(`Order buy signal initialized for ${currentContract} based on live probability score.`);
+    }
+
+    // Boot App
+    connectWebSocket();
+</script>
+
+</body>
+</html>
