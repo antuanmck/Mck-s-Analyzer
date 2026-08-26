@@ -799,6 +799,7 @@
             <div class="panel">
                 <div class="panel-label">🔑 API Execution</div>
                 <input type="password" id="api-token" placeholder="Paste Deriv API Token" oninput="clearApiStatus()">
+                <input type="text" id="deriv-app-id" placeholder="New Deriv App ID" oninput="clearApiStatus()">
                 <button class="btn-primary" style="width: 100%; font-size: 0.75rem;" onclick="connectToken()">CONNECT API</button>
                 <div id="api-status" style="font-size: 0.7rem; color: var(--text-muted); margin-top: 10px;">API NOT CONNECTED</div>
             </div>
@@ -849,7 +850,8 @@
 </div>
 
 <script>
-    const APP_ID = '1089';
+    const API_BASE = 'https://api.derivws.com';
+    const PUBLIC_WS = 'wss://ws.derivws.com/websockets/v3';
     let ws = null;
     let tickHistory = [];
     let currentSymbol = 'R_25';
@@ -869,6 +871,8 @@
     let confidenceThreshold = 60;
     let reconnectAttempts = 0;
     let heartbeatTimer = null;
+    let authToken = '';
+    let authAppId = '';
     let sessionStartedAt = Date.now();
     let sessionTimer = null;
     let tradeHistory = [];
@@ -1097,7 +1101,7 @@
 
     function connectWebSocket() {
         if (ws) ws.close();
-        ws = new WebSocket(`wss://ws.derivws.com/websockets/v3?app_id=${APP_ID}`);
+        ws = new WebSocket(PUBLIC_WS);
 
         ws.onopen = () => {
             reconnectAttempts = 0;
@@ -1245,28 +1249,69 @@
                     : 'LOW';
     }
 
-    function connectToken() {
+    async function connectToken() {
         const rawToken = document.getElementById('api-token').value.trim();
+        const appId = document.getElementById('deriv-app-id').value.trim();
         const status = document.getElementById('api-status');
         const token = rawToken.replace(/^Bearer\s+/i, '').replace(/\s+/g, '');
-        if (!token) {
-            status.innerText = 'Enter an API token first.';
+        if (!token || token.length < 10) {
+            status.innerText = 'Paste the full Deriv PAT token.';
             status.style.color = 'var(--accent-red)';
             return;
         }
-        if (token.length < 10) {
-            status.innerText = 'Token looks incomplete. Paste the full Deriv API token.';
+        if (!appId) {
+            status.innerText = 'Enter the new App ID from developers.deriv.com.';
             status.style.color = 'var(--accent-red)';
             return;
         }
+        authToken = token;
+        authAppId = appId;
 
         if (apiWs) apiWs.close();
-        status.innerText = 'CONNECTING...';
+        window.clearInterval(heartbeatTimer);
+        status.innerText = 'VERIFYING PAT...';
         status.style.color = 'var(--accent-gold)';
-        apiWs = new WebSocket(`wss://ws.derivws.com/websockets/v3?app_id=${APP_ID}`);
+
+        try {
+            const response = await fetch(`${API_BASE}/trading/v1/options/accounts`, {
+                headers: { 'Authorization': `Bearer ${token}`, 'Deriv-App-ID': appId }
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.errors?.[0]?.message || `HTTP ${response.status}`);
+            accountList = result.data || result.accounts || [];
+            if (!accountList.length) throw new Error('No Options accounts were returned for this token.');
+            const accountSelect = document.getElementById('account-select');
+            accountSelect.innerHTML = accountList.map(account => {
+                const accountId = account.account_id || account.id || account.loginid;
+                const label = account.is_virtual || account.account_type === 'demo' ? 'DEMO' : 'REAL';
+                return `<option value="${accountId}">${label} - ${accountId}</option>`;
+            }).join('');
+            accountSelect.disabled = accountList.length < 2;
+            await connectAuthenticatedAccount(accountSelect.value, token, appId);
+        } catch (error) {
+            isAuthorized = false;
+            status.innerText = `ERROR: ${error.message}`;
+            status.style.color = 'var(--accent-red)';
+        }
+    }
+
+    async function connectAuthenticatedAccount(accountId, token, appId) {
+        const status = document.getElementById('api-status');
+        const response = await fetch(`${API_BASE}/trading/v1/options/accounts/${encodeURIComponent(accountId)}/otp`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Deriv-App-ID': appId }
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.errors?.[0]?.message || `OTP request failed (${response.status})`);
+        apiWs = new WebSocket(result.data.url);
 
         apiWs.onopen = () => {
-            apiWs.send(JSON.stringify({ authorize: token, req_id: 1 }));
+            isAuthorized = true;
+            status.innerText = 'CONNECTED';
+            status.style.color = 'var(--accent-green)';
+            const account = accountList.find(item => (item.account_id || item.id || item.loginid) === accountId);
+            if (account) setAccountDisplay({ loginid: accountId, is_virtual: account.is_virtual || account.account_type === 'demo' });
+            apiWs.send(JSON.stringify({ balance: 1, subscribe: 1 }));
             heartbeatTimer = window.setInterval(() => {
                 if (apiWs && apiWs.readyState === WebSocket.OPEN) apiWs.send(JSON.stringify({ ping: 1 }));
             }, 30000);
@@ -1289,19 +1334,7 @@
                 status.innerText = `CONNECTED: ${data.authorize.loginid}`;
                 status.style.color = 'var(--accent-green)';
                 setAccountDisplay(data.authorize);
-                apiWs.send(JSON.stringify({ account_list: 1 }));
                 apiWs.send(JSON.stringify({ balance: 1, subscribe: 1 }));
-            }
-            if (data.msg_type === 'account_list') {
-                accountList = data.account_list || [];
-                const accountSelect = document.getElementById('account-select');
-                accountSelect.innerHTML = accountList.map(account => `<option value="${account.loginid}">${account.is_virtual ? 'DEMO' : 'REAL'} - ${account.loginid}</option>`).join('');
-                accountSelect.disabled = accountList.length < 2;
-                if (accountList.length === 1) accountSelect.value = accountList[0].loginid;
-            }
-            if (data.msg_type === 'switch_account') {
-                apiWs.send(JSON.stringify({ balance: 1, subscribe: 1 }));
-                document.getElementById('hint-log').innerText = 'Account switched. Balance is updating...';
             }
             if (data.msg_type === 'balance') {
                 document.getElementById('account-balance').innerText = `${Number(data.balance.balance).toFixed(2)} ${data.balance.currency}`;
@@ -1379,11 +1412,17 @@
 
     function switchAccount(loginid) {
         if (!isAuthorized || !loginid || !apiWs || apiWs.readyState !== WebSocket.OPEN) return;
-        const account = accountList.find(item => item.loginid === loginid);
+        const account = accountList.find(item => (item.account_id || item.id || item.loginid) === loginid);
         if (!account) return;
-        apiWs.send(JSON.stringify({ switch_account: 1, loginid }));
-        setAccountDisplay(account);
-        document.getElementById('account-balance').innerText = 'UPDATING...';
+        const accountId = account.account_id || account.id || account.loginid;
+        connectAuthenticatedAccount(accountId, authToken, authAppId)
+            .then(() => {
+                setAccountDisplay({ loginid: accountId, is_virtual: account.is_virtual || account.account_type === 'demo' });
+                document.getElementById('account-balance').innerText = 'UPDATING...';
+            })
+            .catch(error => {
+                document.getElementById('hint-log').innerText = `ACCOUNT SWITCH FAILED: ${error.message}`;
+            });
     }
 
     function exportData() {
