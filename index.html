@@ -447,6 +447,7 @@
                 <div class="panel-label">🔑 API Execution</div>
                 <input type="password" id="api-token" placeholder="Paste Deriv API Token">
                 <button class="btn-primary" style="width: 100%; font-size: 0.75rem;" onclick="connectToken()">CONNECT API</button>
+                <div id="api-status" style="font-size: 0.7rem; color: var(--text-muted); margin-top: 10px;">API NOT CONNECTED</div>
             </div>
         </div>
     </div>
@@ -468,6 +469,7 @@
     let tickHistory = [];
     let currentSymbol = 'R_25';
     let isAnalyzing = false;
+    let apiWs = null;
 
     // Render Initial Grid Framework
     function initDigitGrid() {
@@ -513,7 +515,7 @@
 
     function connectWebSocket() {
         if (ws) ws.close();
-        ws = new WebSocket(`wss://ws.deriv.com/websockets/v3?app_id=${APP_ID}`);
+        ws = new WebSocket(`wss://ws.derivws.com/websockets/v3?app_id=${APP_ID}`);
 
         ws.onopen = () => {
             ws.send(JSON.stringify({
@@ -521,7 +523,6 @@
                 adjust_start_time: 1,
                 count: 100,
                 end: "latest",
-                start: 1,
                 style: "ticks",
                 subscribe: 1
             }));
@@ -529,6 +530,10 @@
 
         ws.onmessage = (event) => {
             const data = JSON.parse(event.data);
+            if (data.error) {
+                document.getElementById('hint-log').innerText = `API ERROR: ${data.error.message}`;
+                return;
+            }
             if (data.msg_type === 'history') {
                 tickHistory = data.history.prices;
                 processData();
@@ -537,6 +542,10 @@
                 if (tickHistory.length > 200) tickHistory.shift();
                 processData(data.tick.quote);
             }
+        };
+
+        ws.onerror = () => {
+            document.getElementById('hint-log').innerText = 'API ERROR: Unable to reach Deriv market data.';
         };
     }
 
@@ -582,14 +591,47 @@
     }
 
     function connectToken() {
-        const token = document.getElementById('api-token').value;
-        if (!token) return alert('Paste a valid API Token.');
-        if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ authorize: token }));
-            alert('Authorization request dispatched to Deriv WebSocket.');
-        } else {
-            alert('Click START ANALYSIS first to connect the WebSocket feed.');
+        const token = document.getElementById('api-token').value.trim();
+        const status = document.getElementById('api-status');
+        if (!token) {
+            status.innerText = 'Enter an API token first.';
+            status.style.color = 'var(--accent-red)';
+            return;
         }
+
+        if (apiWs) apiWs.close();
+        status.innerText = 'CONNECTING...';
+        status.style.color = 'var(--accent-gold)';
+        apiWs = new WebSocket(`wss://ws.derivws.com/websockets/v3?app_id=${APP_ID}`);
+
+        apiWs.onopen = () => {
+            apiWs.send(JSON.stringify({ authorize: token }));
+        };
+
+        apiWs.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if (data.error) {
+                status.innerText = `ERROR: ${data.error.message}`;
+                status.style.color = 'var(--accent-red)';
+                return;
+            }
+            if (data.msg_type === 'authorize') {
+                status.innerText = `CONNECTED: ${data.authorize.loginid}`;
+                status.style.color = 'var(--accent-green)';
+            }
+        };
+
+        apiWs.onerror = () => {
+            status.innerText = 'Unable to reach Deriv API.';
+            status.style.color = 'var(--accent-red)';
+        };
+
+        apiWs.onclose = () => {
+            if (status.innerText === 'CONNECTING...') {
+                status.innerText = 'Connection closed before authorization.';
+                status.style.color = 'var(--accent-red)';
+            }
+        };
     }
 
     function exportData() {
