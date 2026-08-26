@@ -813,6 +813,9 @@
                     <div class="ops-stat"><span>NET P/L</span><strong id="net-profit">0.00 USD</strong></div>
                     <div class="ops-stat"><span>MODEL TEST</span><strong id="backtest-result">NOT RUN</strong></div>
                 </div>
+                <select id="account-select" disabled aria-label="Deriv account selector" onchange="switchAccount(this.value)">
+                    <option value="">CONNECT API TO LOAD ACCOUNTS</option>
+                </select>
                 <div class="risk-settings">
                     <label>STOP LOSS
                         <input id="stop-loss" type="number" min="0" step="0.01" value="0">
@@ -862,6 +865,7 @@
     let pendingProposal = null;
     let tradeInFlight = false;
     let lastModelConfidence = 0;
+    let accountList = [];
     let confidenceThreshold = 60;
     let reconnectAttempts = 0;
     let heartbeatTimer = null;
@@ -1284,8 +1288,20 @@
                 isAuthorized = true;
                 status.innerText = `CONNECTED: ${data.authorize.loginid}`;
                 status.style.color = 'var(--accent-green)';
-                document.getElementById('account-mode').innerText = data.authorize.is_virtual ? 'DEMO' : 'LIVE';
+                setAccountDisplay(data.authorize);
+                apiWs.send(JSON.stringify({ account_list: 1 }));
                 apiWs.send(JSON.stringify({ balance: 1, subscribe: 1 }));
+            }
+            if (data.msg_type === 'account_list') {
+                accountList = data.account_list || [];
+                const accountSelect = document.getElementById('account-select');
+                accountSelect.innerHTML = accountList.map(account => `<option value="${account.loginid}">${account.is_virtual ? 'DEMO' : 'REAL'} - ${account.loginid}</option>`).join('');
+                accountSelect.disabled = accountList.length < 2;
+                if (accountList.length === 1) accountSelect.value = accountList[0].loginid;
+            }
+            if (data.msg_type === 'switch_account') {
+                apiWs.send(JSON.stringify({ balance: 1, subscribe: 1 }));
+                document.getElementById('hint-log').innerText = 'Account switched. Balance is updating...';
             }
             if (data.msg_type === 'balance') {
                 document.getElementById('account-balance').innerText = `${Number(data.balance.balance).toFixed(2)} ${data.balance.currency}`;
@@ -1354,6 +1370,20 @@
             status.innerText = 'READY TO CONNECT';
             status.style.color = 'var(--text-muted)';
         }
+    }
+
+    function setAccountDisplay(account) {
+        document.getElementById('account-mode').innerText = account.is_virtual ? 'DEMO' : 'LIVE';
+        document.getElementById('account-select').value = account.loginid;
+    }
+
+    function switchAccount(loginid) {
+        if (!isAuthorized || !loginid || !apiWs || apiWs.readyState !== WebSocket.OPEN) return;
+        const account = accountList.find(item => item.loginid === loginid);
+        if (!account) return;
+        apiWs.send(JSON.stringify({ switch_account: 1, loginid }));
+        setAccountDisplay(account);
+        document.getElementById('account-balance').innerText = 'UPDATING...';
     }
 
     function exportData() {
