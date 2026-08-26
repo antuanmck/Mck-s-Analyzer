@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DERIV ANALYZER | Neural Tick Engine</title>
+    <title>MCKZAI | Neural Tick Engine</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
     <style>
         :root {
             --bg-body: #06080d;
@@ -83,10 +84,42 @@
             letter-spacing: 0.5px;
         }
 
+        .brand-title .brand-subtitle {
+            display: none;
+        }
+
         .header-actions {
             display: flex;
             align-items: center;
             gap: 12px;
+        }
+
+        .method-tabs {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 4px;
+            background: #080b11;
+            border: 1px solid var(--panel-border);
+            padding: 4px;
+            border-radius: 8px;
+        }
+
+        .method-tab {
+            border: 0;
+            border-radius: 4px;
+            background: transparent;
+            color: var(--text-muted);
+            padding: 9px 14px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .method-tab:hover,
+        .method-tab.active {
+            background: #202631;
+            color: var(--accent-gold);
         }
 
         select {
@@ -276,6 +309,14 @@
             background: var(--text-muted);
         }
 
+        .selected-method {
+            color: var(--accent-gold);
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
         /* Right Panel Controls */
         .config-row {
             display: flex;
@@ -287,6 +328,243 @@
 
         .config-row:last-child {
             border-bottom: none;
+        }
+
+        .trade-limit-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .trade-limit-control input {
+            width: 34px;
+            background: var(--card-inner);
+            border: 0;
+            color: var(--text-main);
+            padding: 4px 0;
+            font-weight: 700;
+            text-align: center;
+        }
+
+        .trade-limit-control input::-webkit-outer-spin-button,
+        .trade-limit-control input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .trade-limit-control input[type="number"] {
+            appearance: textfield;
+            -moz-appearance: textfield;
+        }
+
+        .stepper-button {
+            width: 22px;
+            height: 22px;
+            border: 1px solid var(--panel-border);
+            border-radius: 5px;
+            background: transparent;
+            color: var(--text-main);
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .stepper-button:hover {
+            color: var(--accent-gold);
+            border-color: var(--accent-gold);
+        }
+
+        .trade-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .trade-actions button {
+            margin-top: 0;
+            padding: 10px 6px;
+        }
+
+        .trade-actions .btn-secondary:last-child {
+            grid-column: 1 / -1;
+        }
+
+        .execution-note {
+            background: rgba(255, 214, 0, 0.06);
+            border-left: 2px solid var(--accent-gold);
+            color: var(--text-muted);
+            font-size: 0.68rem;
+            line-height: 1.45;
+            margin-top: 12px;
+            padding: 8px 10px;
+        }
+
+        .ops-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            font-size: 0.68rem;
+        }
+
+        .ops-stat {
+            background: var(--card-inner);
+            border: 1px solid var(--panel-border);
+            border-radius: 6px;
+            padding: 8px;
+        }
+
+        .ops-stat span {
+            display: block;
+            color: var(--text-muted);
+            margin-bottom: 3px;
+        }
+
+        .risk-settings {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .risk-settings label {
+            color: var(--text-muted);
+            font-size: 0.62rem;
+            font-weight: 700;
+        }
+
+        .risk-settings input {
+            width: 100%;
+            margin-top: 4px;
+            padding: 7px;
+            background: var(--card-inner);
+            border: 1px solid var(--panel-border);
+            border-radius: 6px;
+            color: var(--text-main);
+            font-size: 0.7rem;
+        }
+
+        .prediction-control {
+            margin-top: 10px;
+        }
+
+        .prediction-control header {
+            display: flex;
+            justify-content: space-between;
+            color: var(--text-muted);
+            font-size: 0.62rem;
+            font-weight: 700;
+        }
+
+        .prediction-control input {
+            width: 100%;
+            accent-color: var(--accent-gold);
+            cursor: pointer;
+        }
+
+        .danger-button {
+            width: 100%;
+            margin-top: 10px;
+            background: rgba(255, 82, 82, 0.12);
+            border: 1px solid rgba(255, 82, 82, 0.4);
+            color: var(--accent-red);
+            border-radius: 8px;
+            padding: 10px;
+            font-size: 0.7rem;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+        .trade-settings {
+            display: grid;
+            grid-template-columns: 1.2fr 0.7fr 0.7fr 0.7fr;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .trade-settings label {
+            color: var(--text-muted);
+            font-size: 0.62rem;
+            font-weight: 700;
+        }
+
+        .trade-settings select,
+        .trade-settings input {
+            width: 100%;
+            margin-top: 5px;
+            padding: 7px 6px;
+            font-size: 0.7rem;
+        }
+
+        .risk-check {
+            display: flex;
+            gap: 7px;
+            align-items: flex-start;
+            color: var(--text-muted);
+            font-size: 0.65rem;
+            line-height: 1.35;
+            margin-top: 10px;
+        }
+
+        .risk-check input {
+            margin-top: 2px;
+            accent-color: var(--accent-gold);
+        }
+
+        .confirm-trade {
+            display: none;
+            width: 100%;
+            margin-top: 8px;
+            background: var(--accent-gold);
+            color: #000;
+            border: 0;
+            border-radius: 8px;
+            padding: 10px;
+            font-size: 0.7rem;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+        .toggle-control {
+            position: relative;
+            width: 38px;
+            height: 20px;
+        }
+
+        .toggle-control input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            inset: 0;
+            background: #202631;
+            border: 1px solid var(--panel-border);
+            border-radius: 20px;
+            cursor: pointer;
+        }
+
+        .toggle-slider::before {
+            content: "";
+            position: absolute;
+            width: 14px;
+            height: 14px;
+            left: 2px;
+            top: 2px;
+            background: var(--text-muted);
+            border-radius: 50%;
+            transition: 0.2s;
+        }
+
+        .toggle-control input:checked + .toggle-slider {
+            background: rgba(0, 230, 118, 0.2);
+            border-color: rgba(0, 230, 118, 0.5);
+        }
+
+        .toggle-control input:checked + .toggle-slider::before {
+            background: var(--accent-green);
+            transform: translateX(18px);
         }
 
         .btn-secondary {
@@ -334,6 +612,19 @@
             padding-top: 16px;
             margin-top: 10px;
         }
+
+        @media (max-width: 900px) {
+            .top-bar {
+                align-items: stretch;
+                flex-direction: column;
+                gap: 14px;
+            }
+
+            .method-tabs {
+                overflow-x: auto;
+                grid-template-columns: repeat(5, minmax(112px, 1fr));
+            }
+        }
     </style>
 </head>
 <body>
@@ -344,7 +635,7 @@
         <div class="brand-logo">
             <div class="logo-icon">∿</div>
             <div class="brand-title">
-                <h1>DERIV ANALYZER</h1>
+                <h1>MCKZAI</h1>
                 <span>NEURAL TICK ENGINE V2.0</span>
             </div>
         </div>
@@ -361,6 +652,14 @@
             <button class="btn-primary" onclick="toggleEngine()">START ANALYSIS</button>
         </div>
     </div>
+
+    <nav class="method-tabs" aria-label="Trading method">
+        <button class="method-tab" data-method="over-under" onclick="selectMethod('over-under', this)">Over / Under</button>
+        <button class="method-tab active" data-method="even-odd" onclick="selectMethod('even-odd', this)">Even / Odd</button>
+        <button class="method-tab" data-method="match-differ" onclick="selectMethod('match-differ', this)">Match / Differ</button>
+        <button class="method-tab" data-method="rise-fall" onclick="selectMethod('rise-fall', this)">Rise / Fall</button>
+        <button class="method-tab" data-method="accum" onclick="selectMethod('accum', this)">Accum</button>
+    </nav>
 
     <!-- Main Grid Workspace -->
     <div class="dashboard-layout">
@@ -392,6 +691,7 @@
             <!-- Strategy Signals Grid -->
             <div class="panel">
                 <div class="panel-label">⚡ Strategy Signals</div>
+                <div id="selected-method" class="selected-method">ACTIVE METHOD: EVEN / ODD</div>
                 <div class="strategy-grid">
                     <div>
                         <div style="font-size: 0.68rem; color: var(--text-muted); margin-bottom: 8px;">EVEN / ODD BIAS</div>
@@ -429,8 +729,61 @@
                 </div>
                 <div class="config-row">
                     <span style="color: var(--text-muted);">Auto-Trading</span>
-                    <span id="autotrade-status" style="font-weight: 700; color: var(--accent-red);">OFF</span>
+                    <label class="toggle-control">
+                        <input id="autotrade-toggle" type="checkbox" onchange="toggleAutoTrading(this.checked)">
+                        <span class="toggle-slider"></span>
+                    </label>
                 </div>
+                <div class="config-row">
+                    <span style="color: var(--text-muted);">Trade Limit</span>
+                    <label class="trade-limit-control">
+                        <button class="stepper-button" type="button" onclick="adjustTradeLimit(-1)" aria-label="Decrease trade limit">-</button>
+                        <input id="trade-limit" type="number" min="1" max="20" value="1" aria-label="Maximum automatic trades" onchange="setTradeLimit(this.value)">
+                        <button class="stepper-button" type="button" onclick="adjustTradeLimit(1)" aria-label="Increase trade limit">+</button>
+                    </label>
+                </div>
+                <div class="config-row">
+                    <span style="color: var(--text-muted);">Prediction Filter</span>
+                    <span id="confidence-value" style="font-weight: 700;">60%</span>
+                </div>
+                <div class="prediction-control">
+                    <header><span>LOWER</span><span>MORE SELECTIVE</span></header>
+                    <input id="confidence-threshold" type="range" min="50" max="95" value="60" step="1" aria-label="Minimum prediction confidence" oninput="setConfidenceThreshold(this.value)">
+                </div>
+                <div id="autotrade-status" style="font-size: 0.68rem; color: var(--accent-red); margin-top: 8px;">AUTO-TRADING OFF</div>
+                <div id="trade-count" style="font-size: 0.68rem; color: var(--text-muted); margin-top: 5px;">TRADES: 0 / 1</div>
+                <div class="trade-settings">
+                    <label>CONTRACT
+                        <select id="contract-type">
+                            <option value="DIGITEVEN">Even</option>
+                            <option value="DIGITODD">Odd</option>
+                            <option value="DIGITOVER">Over</option>
+                            <option value="DIGITUNDER">Under</option>
+                            <option value="CALL">Rise</option>
+                            <option value="PUT">Fall</option>
+                        </select>
+                    </label>
+                    <label>BARRIER
+                        <input id="trade-barrier" type="number" min="0" max="9" step="1" value="5" inputmode="numeric">
+                    </label>
+                    <label>STAKE
+                        <input id="trade-stake" type="number" min="0.35" step="0.01" value="1" inputmode="decimal">
+                    </label>
+                    <label>DURATION
+                        <input id="trade-duration" type="number" min="1" max="10" step="1" value="1" inputmode="numeric">
+                    </label>
+                </div>
+                <label class="risk-check">
+                    <input id="risk-confirm" type="checkbox">
+                    <span>I understand these controls can place real-money trades in the authorized Deriv account.</span>
+                </label>
+                <div class="trade-actions">
+                    <button class="btn-secondary" onclick="manualTrade()">MANUAL TRADE</button>
+                    <button class="btn-secondary" onclick="startAutoTrading()">START AUTO</button>
+                    <button class="btn-secondary" onclick="stopAutoTrading()">STOP AUTO</button>
+                </div>
+                <button id="confirm-trade" class="confirm-trade" onclick="confirmTrade()">CONFIRM BUY ORDER</button>
+                <div class="execution-note">Armed means the analyzer may request a proposal. A buy requires confirmed API authorization, your contract, stake, duration, risk acknowledgement, and the selected prediction confidence. Manual trades always require a separate confirmation.</div>
                 <button class="btn-secondary" onclick="exportData()">📈 EXPORT LIVE DATA</button>
             </div>
 
@@ -449,13 +802,42 @@
                 <button class="btn-primary" style="width: 100%; font-size: 0.75rem;" onclick="connectToken()">CONNECT API</button>
                 <div id="api-status" style="font-size: 0.7rem; color: var(--text-muted); margin-top: 10px;">API NOT CONNECTED</div>
             </div>
+
+            <div class="panel">
+                <div class="panel-label">▦ Operations</div>
+                <div class="ops-grid">
+                    <div class="ops-stat"><span>ACCOUNT</span><strong id="account-mode">NOT CONNECTED</strong></div>
+                    <div class="ops-stat"><span>BALANCE</span><strong id="account-balance">--</strong></div>
+                    <div class="ops-stat"><span>SESSION</span><strong id="session-time">00:00:00</strong></div>
+                    <div class="ops-stat"><span>WIN RATE</span><strong id="win-rate">--</strong></div>
+                    <div class="ops-stat"><span>NET P/L</span><strong id="net-profit">0.00 USD</strong></div>
+                    <div class="ops-stat"><span>MODEL TEST</span><strong id="backtest-result">NOT RUN</strong></div>
+                </div>
+                <div class="risk-settings">
+                    <label>STOP LOSS
+                        <input id="stop-loss" type="number" min="0" step="0.01" value="0">
+                    </label>
+                    <label>TAKE PROFIT
+                        <input id="take-profit" type="number" min="0" step="0.01" value="0">
+                    </label>
+                    <label>MAX DAILY LOSS
+                        <input id="daily-loss" type="number" min="0" step="0.01" value="0">
+                    </label>
+                    <label>MAX LOSS STREAK
+                        <input id="loss-streak" type="number" min="1" max="20" step="1" value="3">
+                    </label>
+                </div>
+                <button class="btn-secondary" onclick="runBacktest()">RUN BACKTEST</button>
+                <button class="danger-button" onclick="emergencyStop()">EMERGENCY STOP</button>
+            </div>
         </div>
     </div>
 
     <!-- Footer -->
     <div class="footer-bar">
-        <div>DERIV API APPLICATION ID: 1089</div>
+        <div>MCKZAI API APPLICATION ID: 1089</div>
         <div style="display: flex; gap: 16px;">
+            <span class="brand-subtitle">NEURAL TICK ENGINE V2.0</span>
             <span>DOCUMENTATION</span>
             <span>RISK WARNING</span>
             <span>CONTACT SUPPORT</span>
@@ -470,6 +852,25 @@
     let currentSymbol = 'R_25';
     let isAnalyzing = false;
     let apiWs = null;
+    let selectedMethod = 'even-odd';
+    let autoTradeLimit = 1;
+    let autoTradeCount = 0;
+    let autoTradingEnabled = false;
+    let neuralModel = null;
+    let neuralTraining = false;
+    let isAuthorized = false;
+    let pendingProposal = null;
+    let tradeInFlight = false;
+    let lastModelConfidence = 0;
+    let confidenceThreshold = 60;
+    let reconnectAttempts = 0;
+    let heartbeatTimer = null;
+    let sessionStartedAt = Date.now();
+    let sessionTimer = null;
+    let tradeHistory = [];
+    let lossStreak = 0;
+    let lastTradeAt = 0;
+    let emergencyStopped = false;
 
     // Render Initial Grid Framework
     function initDigitGrid() {
@@ -513,11 +914,190 @@
         if (isAnalyzing) connectWebSocket();
     }
 
+    function selectMethod(method, button) {
+        selectedMethod = method;
+        document.querySelectorAll('.method-tab').forEach(tab => tab.classList.remove('active'));
+        button.classList.add('active');
+        const labels = {
+            'over-under': 'OVER / UNDER',
+            'even-odd': 'EVEN / ODD',
+            'match-differ': 'MATCH / DIFFER',
+            'rise-fall': 'RISE / FALL',
+            'accum': 'ACCUM'
+        };
+        document.getElementById('selected-method').innerText = `ACTIVE METHOD: ${labels[method]}`;
+        updateStrategySignals();
+    }
+
+    function setTradeLimit(value) {
+        autoTradeLimit = Math.min(20, Math.max(1, Number.parseInt(value, 10) || 1));
+        document.getElementById('trade-limit').value = autoTradeLimit;
+        autoTradeCount = 0;
+        updateTradeCount();
+    }
+
+    function adjustTradeLimit(amount) {
+        setTradeLimit(autoTradeLimit + amount);
+    }
+
+    function toggleAutoTrading(enabled) {
+        if (emergencyStopped && enabled) {
+            document.getElementById('hint-log').innerText = 'TRADE BLOCKED: Reset the page after an emergency stop.';
+            document.getElementById('autotrade-toggle').checked = false;
+            return;
+        }
+        autoTradingEnabled = enabled;
+        const status = document.getElementById('autotrade-status');
+        status.innerText = enabled ? 'AUTO-TRADING ARMED (EXECUTION NOT CONFIGURED)' : 'AUTO-TRADING OFF';
+        status.style.color = enabled ? 'var(--accent-gold)' : 'var(--accent-red)';
+    }
+
+    function setConfidenceThreshold(value) {
+        confidenceThreshold = Math.min(95, Math.max(50, Number.parseInt(value, 10) || 60));
+        document.getElementById('confidence-threshold').value = confidenceThreshold;
+        document.getElementById('confidence-value').innerText = `${confidenceThreshold}%`;
+    }
+
+    function updateTradeCount() {
+        document.getElementById('trade-count').innerText = `TRADES: ${autoTradeCount} / ${autoTradeLimit}`;
+    }
+
+    function manualTrade() {
+        requestTradeProposal(false);
+    }
+
+    function startAutoTrading() {
+        toggleAutoTrading(true);
+        document.getElementById('autotrade-toggle').checked = true;
+        document.getElementById('hint-log').innerText = `Automatic trading armed for up to ${autoTradeLimit} trade${autoTradeLimit === 1 ? '' : 's'}. It will wait for authorization, risk acknowledgement, and ${confidenceThreshold}% confidence.`;
+    }
+
+    function stopAutoTrading() {
+        toggleAutoTrading(false);
+        document.getElementById('autotrade-toggle').checked = false;
+        document.getElementById('hint-log').innerText = 'Automatic trading stopped.';
+    }
+
+    function getTradeSettings() {
+        return {
+            contractType: document.getElementById('contract-type').value,
+            barrier: Number.parseInt(document.getElementById('trade-barrier').value, 10),
+            stake: Number.parseFloat(document.getElementById('trade-stake').value),
+            duration: Number.parseInt(document.getElementById('trade-duration').value, 10)
+        };
+    }
+
+    function validateTradeSettings() {
+        const settings = getTradeSettings();
+        const netProfit = tradeHistory.reduce((total, trade) => total + (trade.profit || 0), 0);
+        const dailyLoss = Math.max(0, -netProfit);
+        if (!isAuthorized) return 'Connect and authorize your Deriv API token first.';
+        if (emergencyStopped) return 'Emergency stop is active. Reload the page to reset it.';
+        if (Date.now() - lastTradeAt < 3000) return 'Cooldown active. Wait 3 seconds between trades.';
+        if (Number.parseFloat(document.getElementById('stop-loss').value) > 0 && netProfit <= -Number.parseFloat(document.getElementById('stop-loss').value)) return 'Stop-loss limit reached.';
+        if (Number.parseFloat(document.getElementById('take-profit').value) > 0 && netProfit >= Number.parseFloat(document.getElementById('take-profit').value)) return 'Take-profit limit reached.';
+        if (Number.parseFloat(document.getElementById('daily-loss').value) > 0 && dailyLoss >= Number.parseFloat(document.getElementById('daily-loss').value)) return 'Maximum daily loss reached.';
+        if (lossStreak >= Number.parseInt(document.getElementById('loss-streak').value, 10)) return 'Maximum consecutive losses reached.';
+        if (!document.getElementById('risk-confirm').checked) return 'Confirm the real-money risk acknowledgement first.';
+        if (!Number.isFinite(settings.stake) || settings.stake < 0.35) return 'Stake must be at least 0.35.';
+        if (!Number.isInteger(settings.duration) || settings.duration < 1 || settings.duration > 10) return 'Duration must be between 1 and 10 ticks.';
+        if (['DIGITOVER', 'DIGITUNDER'].includes(settings.contractType) && (!Number.isInteger(settings.barrier) || settings.barrier < 0 || settings.barrier > 9)) return 'Barrier must be a digit from 0 to 9.';
+        if (lastModelConfidence < confidenceThreshold) return `Wait for the neural model to reach ${confidenceThreshold}% confidence.`;
+        return null;
+    }
+
+    function requestTradeProposal(isAutomatic) {
+        const error = validateTradeSettings();
+        if (error) {
+            document.getElementById('hint-log').innerText = `TRADE BLOCKED: ${error}`;
+            return;
+        }
+        if (tradeInFlight || (isAutomatic && !canPlaceAutomaticTrade())) return;
+        const settings = getTradeSettings();
+        tradeInFlight = true;
+        const proposal = {
+            proposal: 1,
+            amount: settings.stake,
+            basis: 'stake',
+            contract_type: settings.contractType,
+            currency: 'USD',
+            duration: settings.duration,
+            duration_unit: 't',
+            symbol: currentSymbol
+        };
+        if (['DIGITOVER', 'DIGITUNDER'].includes(settings.contractType)) {
+            proposal.barrier = settings.barrier;
+        }
+        apiWs.send(JSON.stringify(proposal));
+        apiWs.pendingAutomaticTrade = isAutomatic;
+        document.getElementById('hint-log').innerText = 'Proposal requested. Waiting for Deriv pricing...';
+    }
+
+    function confirmTrade() {
+        if (!pendingProposal || !apiWs || apiWs.readyState !== WebSocket.OPEN) return;
+        apiWs.send(JSON.stringify({ buy: pendingProposal.id, price: pendingProposal.askPrice }));
+        document.getElementById('confirm-trade').style.display = 'none';
+        document.getElementById('hint-log').innerText = 'Buy request sent to Deriv.';
+        pendingProposal = null;
+        lastTradeAt = Date.now();
+    }
+
+    function emergencyStop() {
+        emergencyStopped = true;
+        autoTradingEnabled = false;
+        if (ws) ws.close();
+        if (apiWs) apiWs.close();
+        document.getElementById('autotrade-toggle').checked = false;
+        document.getElementById('autotrade-status').innerText = 'EMERGENCY STOP ACTIVE';
+        document.getElementById('autotrade-status').style.color = 'var(--accent-red)';
+        document.getElementById('hint-log').innerText = 'All connections closed and new trades blocked. Reload the page to reset.';
+    }
+
+    function runBacktest() {
+        if (tickHistory.length < 30) {
+            document.getElementById('backtest-result').innerText = 'NEED 30 TICKS';
+            document.getElementById('hint-log').innerText = 'Backtest needs at least 30 collected ticks.';
+            return;
+        }
+        const digits = tickHistory.map(price => parseInt(price.toString().slice(-1), 10));
+        let correct = 0;
+        for (let index = 10; index < digits.length - 1; index++) {
+            const recent = digits.slice(index - 10, index);
+            const even = recent.filter(digit => digit % 2 === 0).length >= 5;
+            if ((digits[index] % 2 === 0) === even) correct++;
+        }
+        const accuracy = ((correct / (digits.length - 11)) * 100).toFixed(0);
+        document.getElementById('backtest-result').innerText = `${accuracy}% ACCURACY`;
+        document.getElementById('hint-log').innerText = `Historical Even/Odd backtest: ${accuracy}% accuracy. Past results do not guarantee future outcomes.`;
+    }
+
+    function updateSession() {
+        const elapsed = Math.floor((Date.now() - sessionStartedAt) / 1000);
+        const hours = String(Math.floor(elapsed / 3600)).padStart(2, '0');
+        const minutes = String(Math.floor((elapsed % 3600) / 60)).padStart(2, '0');
+        const seconds = String(elapsed % 60).padStart(2, '0');
+        document.getElementById('session-time').innerText = `${hours}:${minutes}:${seconds}`;
+    }
+
+    function updateTradeStats() {
+        const settled = tradeHistory.filter(trade => trade.status !== 'OPEN');
+        const wins = settled.filter(trade => trade.profit > 0).length;
+        const profit = tradeHistory.reduce((total, trade) => total + trade.profit, 0);
+        document.getElementById('win-rate').innerText = settled.length ? `${((wins / settled.length) * 100).toFixed(0)}%` : '--';
+        document.getElementById('net-profit').innerText = `${profit.toFixed(2)} USD`;
+    }
+
+    function canPlaceAutomaticTrade() {
+        return autoTradeCount < autoTradeLimit;
+    }
+
     function connectWebSocket() {
         if (ws) ws.close();
         ws = new WebSocket(`wss://ws.derivws.com/websockets/v3?app_id=${APP_ID}`);
 
         ws.onopen = () => {
+            reconnectAttempts = 0;
+            document.getElementById('status-badge').innerText = 'STATUS: CONNECTED';
             ws.send(JSON.stringify({
                 ticks_history: currentSymbol,
                 adjust_start_time: 1,
@@ -547,6 +1127,14 @@
         ws.onerror = () => {
             document.getElementById('hint-log').innerText = 'API ERROR: Unable to reach Deriv market data.';
         };
+
+        ws.onclose = () => {
+            if (isAnalyzing && reconnectAttempts < 5) {
+                reconnectAttempts++;
+                document.getElementById('hint-log').innerText = `Market connection lost. Reconnecting (${reconnectAttempts}/5)...`;
+                window.setTimeout(connectWebSocket, Math.min(30000, reconnectAttempts * 2000));
+            }
+        };
     }
 
     function processData(latestPrice) {
@@ -560,6 +1148,7 @@
         const digits = tickHistory.map(p => parseInt(p.toString().slice(-1)));
         const counts = Array(10).fill(0);
         digits.forEach(d => counts[d]++);
+        trainNeuralModel(digits);
 
         let minPct = 100, maxPct = 0;
         for (let i = 0; i < 10; i++) {
@@ -573,21 +1162,83 @@
         const signalStrength = (100 - minPct).toFixed(0);
         document.getElementById('gauge-val').innerText = `${signalStrength}%`;
 
-        // Update Strategy Signals
-        const evenCount = digits.filter(d => d % 2 === 0).length;
-        const evenPct = ((evenCount / digits.length) * 100).toFixed(0);
-        document.getElementById('evenodd-val').innerText = `${evenPct}% EVEN`;
+        updateStrategySignals(digits);
 
-        const over5Count = digits.filter(d => d >= 5).length;
-        const over5Pct = ((over5Count / digits.length) * 100).toFixed(0);
-        document.getElementById('overunder-val').innerText = `${over5Pct}% OVER`;
-
-        // Update Hint Log
         if (tickHistory.length < 20) {
             document.getElementById('hint-log').innerText = `Gathering tick intelligence... Need ${20 - tickHistory.length} more data points for reliable signals.`;
         } else {
             document.getElementById('hint-log').innerText = `Engine synchronized with ${currentSymbol}. High statistical deviation detected on coldest digit. Differ model edge active.`;
         }
+    }
+
+    async function trainNeuralModel(digits) {
+        if (neuralTraining || typeof tf === 'undefined' || digits.length < 30) return;
+        neuralTraining = true;
+        const inputDigits = 10;
+        const samples = digits.length - inputDigits;
+        const inputs = [];
+        const outputs = [];
+        for (let index = 0; index < samples; index++) {
+            inputs.push(digits.slice(index, index + inputDigits).map(digit => digit / 9));
+            outputs.push(digits[index + inputDigits]);
+        }
+
+        const inputTensor = tf.tensor2d(inputs);
+        const outputTensor = tf.oneHot(tf.tensor1d(outputs, 'int32'), 10);
+        if (!neuralModel) {
+            neuralModel = tf.sequential({
+                layers: [
+                    tf.layers.dense({ inputShape: [inputDigits], units: 24, activation: 'relu' }),
+                    tf.layers.dense({ units: 16, activation: 'relu' }),
+                    tf.layers.dense({ units: 10, activation: 'softmax' })
+                ]
+            });
+            neuralModel.compile({ optimizer: 'adam', loss: 'categoricalCrossentropy', metrics: ['accuracy'] });
+        }
+        await neuralModel.fit(inputTensor, outputTensor, { epochs: 3, batchSize: 16, shuffle: true, verbose: 0 });
+        const prediction = neuralModel.predict(tf.tensor2d([digits.slice(-inputDigits).map(digit => digit / 9)]));
+        const probabilities = await prediction.data();
+        const predictedDigit = probabilities.indexOf(Math.max(...probabilities));
+        const confidence = (probabilities[predictedDigit] * 100).toFixed(0);
+        lastModelConfidence = Number(confidence);
+        document.getElementById('gauge-val').innerText = `${confidence}%`;
+        document.getElementById('hint-log').innerText = `Neural model predicts digit ${predictedDigit} with ${confidence}% model confidence. This is statistical analysis, not a guarantee.`;
+        if (autoTradingEnabled && lastModelConfidence >= confidenceThreshold) requestTradeProposal(true);
+        tf.dispose([inputTensor, outputTensor, prediction]);
+        neuralTraining = false;
+    }
+
+    function updateStrategySignals(digits = tickHistory.map(p => parseInt(p.toString().slice(-1)))) {
+        if (!digits.length) return;
+
+        const evenCount = digits.filter(d => d % 2 === 0).length;
+        const evenPct = ((evenCount / digits.length) * 100).toFixed(0);
+        const over5Count = digits.filter(d => d >= 5).length;
+        const over5Pct = ((over5Count / digits.length) * 100).toFixed(0);
+        const evenOddValue = evenCount >= digits.length / 2 ? `${evenPct}% EVEN` : `${100 - evenPct}% ODD`;
+        const overUnderValue = over5Count >= digits.length / 2 ? `${over5Pct}% OVER` : `${100 - over5Pct}% UNDER`;
+        const recentDigits = digits.slice(-20);
+        const lastDigit = recentDigits[recentDigits.length - 1];
+        const previousDigit = recentDigits[recentDigits.length - 2];
+        const matches = recentDigits.filter(digit => digit === lastDigit).length;
+        const matchPct = ((matches / recentDigits.length) * 100).toFixed(0);
+        const priceValues = tickHistory.slice(-20).map(Number).filter(Number.isFinite);
+        const rises = priceValues.slice(1).filter((price, index) => price > priceValues[index]).length;
+        const falls = priceValues.slice(1).filter((price, index) => price < priceValues[index]).length;
+        const trendTotal = Math.max(1, rises + falls);
+        const range = priceValues.length ? Math.max(...priceValues) - Math.min(...priceValues) : 0;
+        const average = priceValues.length ? priceValues.reduce((total, price) => total + price, 0) / priceValues.length : 0;
+        const rangePct = average ? ((range / average) * 100).toFixed(2) : '0.00';
+
+        document.getElementById('evenodd-val').innerText = selectedMethod === 'even-odd' ? evenOddValue : `${evenPct}% EVEN`;
+        document.getElementById('overunder-val').innerText = selectedMethod === 'over-under' ? overUnderValue : `${over5Pct}% OVER`;
+        document.getElementById('matches-val').innerText = selectedMethod === 'match-differ'
+            ? (lastDigit === previousDigit ? `MATCH ${matchPct}%` : `DIFFER ${100 - matchPct}%`)
+            : selectedMethod === 'rise-fall'
+                ? (rises >= falls ? `RISE ${((rises / trendTotal) * 100).toFixed(0)}%` : `FALL ${((falls / trendTotal) * 100).toFixed(0)}%`)
+                : selectedMethod === 'accum'
+                    ? (Number(rangePct) >= 0.1 ? `ACTIVE ${rangePct}%` : `CALM ${rangePct}%`)
+                    : 'LOW';
     }
 
     function connectToken() {
@@ -606,18 +1257,61 @@
 
         apiWs.onopen = () => {
             apiWs.send(JSON.stringify({ authorize: token }));
+            heartbeatTimer = window.setInterval(() => {
+                if (apiWs && apiWs.readyState === WebSocket.OPEN) apiWs.send(JSON.stringify({ ping: 1 }));
+            }, 30000);
         };
 
         apiWs.onmessage = (event) => {
             const data = JSON.parse(event.data);
             if (data.error) {
+                isAuthorized = false;
+                tradeInFlight = false;
                 status.innerText = `ERROR: ${data.error.message}`;
                 status.style.color = 'var(--accent-red)';
                 return;
             }
             if (data.msg_type === 'authorize') {
+                isAuthorized = true;
                 status.innerText = `CONNECTED: ${data.authorize.loginid}`;
                 status.style.color = 'var(--accent-green)';
+                document.getElementById('account-mode').innerText = data.authorize.is_virtual ? 'DEMO' : 'LIVE';
+                apiWs.send(JSON.stringify({ balance: 1, subscribe: 1 }));
+            }
+            if (data.msg_type === 'balance') {
+                document.getElementById('account-balance').innerText = `${Number(data.balance.balance).toFixed(2)} ${data.balance.currency}`;
+            }
+            if (data.msg_type === 'proposal') {
+                tradeInFlight = false;
+                pendingProposal = { id: data.proposal.id, askPrice: data.proposal.ask_price };
+                if (apiWs.pendingAutomaticTrade) {
+                    confirmTrade();
+                } else {
+                    document.getElementById('confirm-trade').style.display = 'block';
+                    document.getElementById('hint-log').innerText = `Proposal ready at ${data.proposal.ask_price} USD. Confirm the buy order to place it.`;
+                }
+                apiWs.pendingAutomaticTrade = false;
+            }
+            if (data.msg_type === 'buy') {
+                tradeInFlight = false;
+                autoTradeCount++;
+                updateTradeCount();
+                document.getElementById('hint-log').innerText = `Trade placed. Contract ID: ${data.buy.contract_id}`;
+                tradeHistory.push({ id: data.buy.contract_id, status: 'OPEN', profit: 0 });
+                apiWs.send(JSON.stringify({ proposal_open_contract: 1, contract_id: data.buy.contract_id, subscribe: 1 }));
+            }
+            if (data.msg_type === 'proposal_open_contract') {
+                const contract = data.proposal_open_contract;
+                const trade = tradeHistory.find(item => item.id === contract.contract_id);
+                if (trade) {
+                    trade.profit = Number(contract.profit || 0);
+                    if (contract.is_sold) {
+                        trade.status = contract.status || (trade.profit >= 0 ? 'WON' : 'LOST');
+                        lossStreak = trade.profit < 0 ? lossStreak + 1 : 0;
+                        updateTradeStats();
+                        document.getElementById('hint-log').innerText = `Contract ${trade.status.toLowerCase()}. Result: ${trade.profit.toFixed(2)} USD.`;
+                    }
+                }
             }
         };
 
@@ -627,6 +1321,9 @@
         };
 
         apiWs.onclose = () => {
+            isAuthorized = false;
+            tradeInFlight = false;
+            window.clearInterval(heartbeatTimer);
             if (status.innerText === 'CONNECTING...') {
                 status.innerText = 'Connection closed before authorization.';
                 status.style.color = 'var(--accent-red)';
@@ -635,7 +1332,7 @@
     }
 
     function exportData() {
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(tickHistory));
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ ticks: tickHistory, trades: tradeHistory }));
         const downloadAnchor = document.createElement('a');
         downloadAnchor.setAttribute("href", dataStr);
         downloadAnchor.setAttribute("download", `tick_data_${currentSymbol}.json`);
@@ -646,6 +1343,10 @@
 
     // Initialize layout
     initDigitGrid();
+    updateTradeCount();
+    updateTradeStats();
+    updateSession();
+    window.setInterval(updateSession, 1000);
 </script>
 
 </body>
