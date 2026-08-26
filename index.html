@@ -1275,7 +1275,7 @@
                 tradeInFlight = false;
                 const errorMessage = data.error.message || 'Authorization rejected';
                 status.innerText = errorMessage.toLowerCase().includes('token is invalid')
-                    ? 'ERROR: Deriv rejected this token. Generate a new API token and check its permissions.'
+                    ? `ERROR: Deriv rejected this token (${token.length} characters). Use the token value itself from Deriv's API token page, not an app ID, OAuth code, or label.`
                     : `ERROR: ${errorMessage}`;
                 status.style.color = 'var(--accent-red)';
                 return;
@@ -1346,6 +1346,14 @@
                 status.style.color = 'var(--accent-red)';
             }
         };
+    }
+
+    function clearApiStatus() {
+        const status = document.getElementById('api-status');
+        if (status.innerText.startsWith('ERROR:') || status.innerText.startsWith('Token')) {
+            status.innerText = 'READY TO CONNECT';
+            status.style.color = 'var(--text-muted)';
+        }
     }
 
     function exportData() {
