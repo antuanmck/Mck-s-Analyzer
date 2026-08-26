@@ -1242,10 +1242,16 @@
     }
 
     function connectToken() {
-        const token = document.getElementById('api-token').value.trim();
+        const rawToken = document.getElementById('api-token').value.trim();
         const status = document.getElementById('api-status');
+        const token = rawToken.replace(/^Bearer\s+/i, '').replace(/\s+/g, '');
         if (!token) {
             status.innerText = 'Enter an API token first.';
+            status.style.color = 'var(--accent-red)';
+            return;
+        }
+        if (token.length < 10) {
+            status.innerText = 'Token looks incomplete. Paste the full Deriv API token.';
             status.style.color = 'var(--accent-red)';
             return;
         }
@@ -1256,7 +1262,7 @@
         apiWs = new WebSocket(`wss://ws.derivws.com/websockets/v3?app_id=${APP_ID}`);
 
         apiWs.onopen = () => {
-            apiWs.send(JSON.stringify({ authorize: token }));
+            apiWs.send(JSON.stringify({ authorize: token, req_id: 1 }));
             heartbeatTimer = window.setInterval(() => {
                 if (apiWs && apiWs.readyState === WebSocket.OPEN) apiWs.send(JSON.stringify({ ping: 1 }));
             }, 30000);
@@ -1267,7 +1273,7 @@
             if (data.error) {
                 isAuthorized = false;
                 tradeInFlight = false;
-                status.innerText = `ERROR: ${data.error.message}`;
+                status.innerText = `ERROR: ${data.error.message || 'Authorization rejected'}`;
                 status.style.color = 'var(--accent-red)';
                 return;
             }
