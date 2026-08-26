@@ -798,7 +798,7 @@
             <!-- API Auth Execution Panel (Replaces Go Premium) -->
             <div class="panel">
                 <div class="panel-label">🔑 API Execution</div>
-                <input type="password" id="api-token" placeholder="Paste Deriv API Token">
+                <input type="password" id="api-token" placeholder="Paste Deriv API Token" oninput="clearApiStatus()">
                 <button class="btn-primary" style="width: 100%; font-size: 0.75rem;" onclick="connectToken()">CONNECT API</button>
                 <div id="api-status" style="font-size: 0.7rem; color: var(--text-muted); margin-top: 10px;">API NOT CONNECTED</div>
             </div>
@@ -1273,7 +1273,10 @@
             if (data.error) {
                 isAuthorized = false;
                 tradeInFlight = false;
-                status.innerText = `ERROR: ${data.error.message || 'Authorization rejected'}`;
+                const errorMessage = data.error.message || 'Authorization rejected';
+                status.innerText = errorMessage.toLowerCase().includes('token is invalid')
+                    ? 'ERROR: Deriv rejected this token. Generate a new API token and check its permissions.'
+                    : `ERROR: ${errorMessage}`;
                 status.style.color = 'var(--accent-red)';
                 return;
             }
@@ -1316,6 +1319,14 @@
                         lossStreak = trade.profit < 0 ? lossStreak + 1 : 0;
                         updateTradeStats();
                         document.getElementById('hint-log').innerText = `Contract ${trade.status.toLowerCase()}. Result: ${trade.profit.toFixed(2)} USD.`;
+                    }
+                }
+
+                function clearApiStatus() {
+                    const status = document.getElementById('api-status');
+                    if (status.innerText.startsWith('ERROR:') || status.innerText.startsWith('Token')) {
+                        status.innerText = 'READY TO CONNECT';
+                        status.style.color = 'var(--text-muted)';
                     }
                 }
             }
