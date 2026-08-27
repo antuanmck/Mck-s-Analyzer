@@ -197,9 +197,55 @@
 
         /* Market Intensity Header Panel */
         .intensity-card {
+            display: grid;
+            grid-template-columns: 1.8fr 1.2fr 1fr;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .price-line {
+            display: flex;
+            align-items: baseline;
+            gap: 14px;
+        }
+
+        .price-delta {
+            font-size: 1.1rem;
+            font-weight: 800;
+        }
+
+        .market-context {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            border-left: 1px solid var(--panel-border);
+            border-right: 1px solid var(--panel-border);
+            padding: 0 16px;
+        }
+
+        .context-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            gap: 10px;
+        }
+
+        .context-label {
+            color: var(--text-muted);
+            font-size: 0.62rem;
+            font-weight: 700;
+        }
+
+        .context-value {
+            color: var(--text-main);
+            font-size: 0.78rem;
+            font-weight: 800;
+            text-align: right;
+        }
+
+        .sequence-value {
+            color: var(--accent-blue);
+            letter-spacing: 2px;
         }
 
         .panel-label {
@@ -838,6 +884,17 @@
                 overflow-x: auto;
                 grid-template-columns: repeat(5, minmax(112px, 1fr));
             }
+
+            .intensity-card {
+                grid-template-columns: 1fr;
+            }
+
+            .market-context {
+                border: 0;
+                border-top: 1px solid var(--panel-border);
+                border-bottom: 1px solid var(--panel-border);
+                padding: 12px 0;
+            }
         }
     </style>
 </head>
@@ -871,13 +928,30 @@
             <div class="panel intensity-card">
                 <div>
                     <div class="panel-label">∿ Market Intensity</div>
-                    <div id="price-display" class="price-hero">0.000</div>
-                    <div class="badge-row">
+                    <div class="price-line">
+                        <div id="price-display" class="price-hero">0.000</div>
+                        <div id="price-delta" class="price-delta" style="color: var(--accent-green);">+0.000</div>
+                    </div>
+                    <div class="badge-row" style="margin-top: 10px;">
                         <span id="datapoints-badge" class="pill-badge">DATA POINTS: 0</span>
                         <span id="status-badge" class="pill-badge status-idle">STATUS: IDLE</span>
                     </div>
                 </div>
-                <div class="signal-gauge">
+                <div class="market-context">
+                    <div class="context-row">
+                        <span class="context-label">TICK VELOCITY</span>
+                        <span id="tick-speed" class="context-value">0.0 / sec</span>
+                    </div>
+                    <div class="context-row">
+                        <span class="context-label">CURRENT STREAK</span>
+                        <span id="streak-counter" class="context-value" style="color: var(--accent-gold);">NONE</span>
+                    </div>
+                    <div class="context-row">
+                        <span class="context-label">LAST DIGIT SEQ</span>
+                        <span id="digit-sequence" class="context-value sequence-value">---</span>
+                    </div>
+                </div>
+                <div class="signal-gauge" style="justify-self: center;">
                     <div id="gauge-val" class="gauge-value">-</div>
                     <div class="gauge-sub">SIGNAL STRENGTH</div>
                 </div>
@@ -1110,6 +1184,8 @@
     let heartbeatTimer = null;
     let authToken = '';
     let authAppId = '';
+    let sessionTickCount = 0;
+    let lastTickAt = 0;
     let sessionStartedAt = Date.now();
     let sessionTimer = null;
     let tradeHistory = [];
@@ -1421,6 +1497,7 @@
             } else if (data.msg_type === 'tick') {
                 tickHistory.push(data.tick.quote);
                 if (tickHistory.length > 200) tickHistory.shift();
+                sessionTickCount++;
                 processData(data.tick.quote);
             }
         };
@@ -1442,13 +1519,26 @@
         if (!tickHistory.length) return;
 
         const currentPrice = latestPrice || tickHistory[tickHistory.length - 1];
+        const previousPrice = tickHistory.length > 1 ? Number(tickHistory[tickHistory.length - 2]) : Number(currentPrice);
+        const priceDelta = Number(currentPrice) - previousPrice;
+        const deltaElement = document.getElementById('price-delta');
+        deltaElement.innerText = `${priceDelta >= 0 ? '+' : ''}${priceDelta.toFixed(3)}`;
+        deltaElement.style.color = priceDelta >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
         document.getElementById('price-display').innerText = currentPrice;
         document.getElementById('datapoints-badge').innerText = `DATA POINTS: ${tickHistory.length}`;
+        const elapsedSeconds = Math.max(1, (Date.now() - sessionStartedAt) / 1000);
+        document.getElementById('tick-speed').innerText = `${(sessionTickCount / elapsedSeconds).toFixed(1)} / sec`;
 
         // Compute Digit Distribution
         const digits = tickHistory.map(p => parseInt(p.toString().slice(-1)));
         const counts = Array(10).fill(0);
         digits.forEach(d => counts[d]++);
+        const recentDigits = digits.slice(-10);
+        document.getElementById('digit-sequence').innerText = recentDigits.join('') || '---';
+        const lastParity = digits[digits.length - 1] % 2;
+        let streak = 0;
+        for (let index = digits.length - 1; index >= 0 && digits[index] % 2 === lastParity; index--) streak++;
+        document.getElementById('streak-counter').innerText = `${streak} ${lastParity === 0 ? 'EVEN' : 'ODD'}`;
         trainNeuralModel(digits);
 
         let minPct = 100, maxPct = 0;
