@@ -716,6 +716,90 @@
             margin-right: 5px;
         }
 
+        .trade-history-summary {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .trade-stat {
+            background: var(--card-inner);
+            border: 1px solid var(--panel-border);
+            border-radius: 7px;
+            padding: 10px;
+        }
+
+        .trade-stat span {
+            display: block;
+            color: var(--text-muted);
+            font-size: 0.61rem;
+            margin-bottom: 5px;
+        }
+
+        .trade-stat strong {
+            color: var(--text-main);
+            font-size: 1rem;
+        }
+
+        .trade-stat.profit strong,
+        .trade-stat.wins strong {
+            color: var(--accent-green);
+        }
+
+        .trade-stat.loss strong {
+            color: var(--accent-red);
+        }
+
+        .trade-history-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 260px;
+            overflow-y: auto;
+        }
+
+        .trade-history-empty {
+            color: var(--text-muted);
+            font-size: 0.7rem;
+            padding: 12px 4px;
+            text-align: center;
+        }
+
+        .trade-record {
+            border: 1px solid var(--panel-border);
+            border-radius: 7px;
+            padding: 9px;
+            background: #0e131d;
+        }
+
+        .trade-record-top,
+        .trade-record-bottom {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .trade-record-top {
+            color: var(--text-main);
+            font-size: 0.7rem;
+            font-weight: 700;
+        }
+
+        .trade-record-bottom {
+            color: var(--text-muted);
+            font-size: 0.61rem;
+            margin-top: 5px;
+        }
+
+        .trade-record.won .trade-record-top strong {
+            color: var(--accent-green);
+        }
+
+        .trade-record.lost .trade-record-top strong {
+            color: var(--accent-red);
+        }
+
         input[type="password"],
         input[type="text"] {
             width: 100%;
@@ -844,6 +928,23 @@
                             <span id="matches-dot" class="status-dot" style="background: var(--accent-green);"></span>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-label">▣ Trade History</div>
+                <div class="trade-history-summary">
+                    <div class="trade-stat profit"><span>NET PROFIT / LOSS</span><strong id="history-profit">0.00 USD</strong></div>
+                    <div class="trade-stat"><span>WIN RATE</span><strong id="history-win-rate">--</strong></div>
+                    <div class="trade-stat wins"><span>WINS</span><strong id="history-wins">0</strong></div>
+                    <div class="trade-stat loss"><span>LOSSES</span><strong id="history-losses">0</strong></div>
+                </div>
+                <div class="hint-history-header">
+                    <span>ALL TRADES <b id="history-total">(0)</b></span>
+                    <button class="hint-clear" type="button" onclick="clearTradeHistory()">CLEAR</button>
+                </div>
+                <div id="trade-history-list" class="trade-history-list">
+                    <div class="trade-history-empty">No trades executed yet.</div>
                 </div>
             </div>
         </div>
@@ -1002,6 +1103,7 @@
     let pendingProposal = null;
     let tradeInFlight = false;
     let lastModelConfidence = 0;
+    let pendingTradeRecordId = null;
     let accountList = [];
     let confidenceThreshold = 60;
     let reconnectAttempts = 0;
@@ -1152,7 +1254,7 @@
     function requestTradeProposal(isAutomatic) {
         const error = validateTradeSettings();
         if (error) {
-            setHint(`TRADE BLOCKED: ${error}`);
+            addTradeRecord({ status: 'BLOCKED', detail: error, method: isAutomatic ? 'AUTOMATIC' : 'MANUAL' });
             return;
         }
         if (tradeInFlight || (isAutomatic && !canPlaceAutomaticTrade())) return;
@@ -1173,6 +1275,13 @@
         }
         apiWs.send(JSON.stringify(proposal));
         apiWs.pendingAutomaticTrade = isAutomatic;
+        pendingTradeRecordId = addTradeRecord({
+            status: 'PROPOSAL',
+            detail: isAutomatic ? 'AUTOMATIC' : 'MANUAL',
+            contract: settings.contractType,
+            stake: settings.stake,
+            duration: settings.duration
+        });
         setHint('Proposal requested. Waiting for Deriv pricing...');
     }
 
@@ -1193,7 +1302,8 @@
         document.getElementById('autotrade-toggle').checked = false;
         document.getElementById('autotrade-status').innerText = 'EMERGENCY STOP ACTIVE';
         document.getElementById('autotrade-status').style.color = 'var(--accent-red)';
-        setHint('All connections closed and new trades blocked. Reload the page to reset.');
+        setTradeEvent('Emergency stop active. All connections closed and new trades blocked.');
+        setHint('Emergency stop active. Market analysis stopped.');
     }
 
     function runBacktest() {
@@ -1228,6 +1338,42 @@
         const profit = tradeHistory.reduce((total, trade) => total + trade.profit, 0);
         document.getElementById('win-rate').innerText = settled.length ? `${((wins / settled.length) * 100).toFixed(0)}%` : '--';
         document.getElementById('net-profit').innerText = `${profit.toFixed(2)} USD`;
+        document.getElementById('history-win-rate').innerText = settled.length ? `${((wins / settled.length) * 100).toFixed(0)}%` : '--';
+        document.getElementById('history-profit').innerText = `${profit.toFixed(2)} USD`;
+        document.getElementById('history-wins').innerText = wins;
+        document.getElementById('history-losses').innerText = settled.filter(trade => trade.profit < 0).length;
+        document.getElementById('history-total').innerText = `(${tradeHistory.length})`;
+        renderTradeHistory();
+    }
+
+    function addTradeRecord(record) {
+        const id = record.id || `trade-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+        tradeHistory.unshift({ id, status: record.status || 'OPEN', detail: record.detail || '', contract: record.contract || '', stake: record.stake || 0, duration: record.duration || 0, profit: record.profit || 0, time: new Date() });
+        updateTradeStats();
+        return id;
+    }
+
+    function renderTradeHistory() {
+        const list = document.getElementById('trade-history-list');
+        if (!list) return;
+        if (!tradeHistory.length) {
+            list.innerHTML = '<div class="trade-history-empty">No trades executed yet.</div>';
+            return;
+        }
+        list.innerHTML = tradeHistory.slice(0, 30).map(trade => {
+            const status = trade.status.toUpperCase();
+            const statusClass = status === 'WON' ? 'won' : status === 'LOST' ? 'lost' : '';
+            const result = ['OPEN', 'PROPOSAL', 'PROPOSAL READY', 'BLOCKED', 'EVENT'].includes(status)
+                ? status
+                : `${status} ${trade.profit >= 0 ? '+' : ''}${Number(trade.profit).toFixed(2)} USD`;
+            return `<div class="trade-record ${statusClass}"><div class="trade-record-top"><span>${trade.contract || trade.detail || 'Trade event'}</span><strong>${result}</strong></div><div class="trade-record-bottom"><span>${trade.time ? trade.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</span><span>${trade.stake ? `Stake ${trade.stake} USD` : ''}${trade.duration ? ` · ${trade.duration} tick` : ''}</span></div></div>`;
+        }).join('');
+    }
+
+    function clearTradeHistory() {
+        tradeHistory = [];
+        lossStreak = 0;
+        updateTradeStats();
     }
 
     function canPlaceAutomaticTrade() {
@@ -1477,11 +1623,17 @@
             if (data.msg_type === 'proposal') {
                 tradeInFlight = false;
                 pendingProposal = { id: data.proposal.id, askPrice: data.proposal.ask_price };
+                const proposalRecord = tradeHistory.find(trade => trade.id === pendingTradeRecordId);
+                if (proposalRecord) {
+                    proposalRecord.status = 'PROPOSAL READY';
+                    proposalRecord.detail = `Price ${data.proposal.ask_price} USD`;
+                    updateTradeStats();
+                }
                 if (apiWs.pendingAutomaticTrade) {
                     confirmTrade();
                 } else {
                     document.getElementById('confirm-trade').style.display = 'block';
-                    setHint(`Proposal ready at ${data.proposal.ask_price} USD. Confirm the buy order to place it.`);
+                    setTradeEvent(`Proposal ready at ${data.proposal.ask_price} USD. Confirm the buy order to place it.`);
                 }
                 apiWs.pendingAutomaticTrade = false;
             }
@@ -1489,8 +1641,16 @@
                 tradeInFlight = false;
                 autoTradeCount++;
                 updateTradeCount();
-                setHint(`Trade placed. Contract ID: ${data.buy.contract_id}`);
-                tradeHistory.push({ id: data.buy.contract_id, status: 'OPEN', profit: 0 });
+                const trade = tradeHistory.find(item => item.id === pendingTradeRecordId);
+                if (trade) {
+                    trade.id = data.buy.contract_id;
+                    trade.status = 'OPEN';
+                } else {
+                    addTradeRecord({ id: data.buy.contract_id, status: 'OPEN' });
+                }
+                pendingTradeRecordId = null;
+                updateTradeStats();
+                setTradeEvent(`Trade placed. Contract ID: ${data.buy.contract_id}`);
                 apiWs.send(JSON.stringify({ proposal_open_contract: 1, contract_id: data.buy.contract_id, subscribe: 1 }));
             }
             if (data.msg_type === 'proposal_open_contract') {
@@ -1502,7 +1662,7 @@
                         trade.status = contract.status || (trade.profit >= 0 ? 'WON' : 'LOST');
                         lossStreak = trade.profit < 0 ? lossStreak + 1 : 0;
                         updateTradeStats();
-                        setHint(`Contract ${trade.status.toLowerCase()}. Result: ${trade.profit.toFixed(2)} USD.`);
+                        setTradeEvent(`Contract ${trade.status.toLowerCase()}. Result: ${trade.profit.toFixed(2)} USD.`);
                     }
                 }
 
@@ -1550,6 +1710,10 @@
         entry.innerHTML = `<time>${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</time>${message}`;
         history.prepend(entry);
         while (history.children.length > 30) history.lastElementChild.remove();
+    }
+
+    function setTradeEvent(message) {
+        addTradeRecord({ status: 'EVENT', detail: message });
     }
 
     function clearHintHistory() {
