@@ -1309,7 +1309,6 @@
         const confidence = (probabilities[predictedDigit] * 100).toFixed(0);
         lastModelConfidence = Number(confidence);
         document.getElementById('gauge-val').innerText = `${confidence}%`;
-        setHint(`Neural model predicts digit ${predictedDigit} with ${confidence}% model confidence. This is statistical analysis, not a guarantee.`);
         if (autoTradingEnabled && lastModelConfidence >= confidenceThreshold) requestTradeProposal(true);
         tf.dispose([inputTensor, outputTensor, prediction]);
         neuralTraining = false;
