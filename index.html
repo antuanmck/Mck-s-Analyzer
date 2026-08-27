@@ -625,6 +625,59 @@
             line-height: 1.5;
         }
 
+        .hint-current {
+            color: var(--text-main);
+            font-size: 0.72rem;
+            line-height: 1.45;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--panel-border);
+        }
+
+        .hint-history-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: var(--text-muted);
+            font-size: 0.62rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin: 10px 0 6px;
+        }
+
+        .hint-clear {
+            border: 0;
+            background: transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 0.62rem;
+            padding: 0;
+        }
+
+        .hint-clear:hover {
+            color: var(--accent-gold);
+        }
+
+        .hint-history-list {
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+            max-height: 190px;
+            overflow-y: auto;
+        }
+
+        .hint-entry {
+            border-left: 2px solid var(--panel-border);
+            padding-left: 8px;
+            font-size: 0.68rem;
+            line-height: 1.35;
+        }
+
+        .hint-entry time {
+            color: var(--accent-gold);
+            font-size: 0.58rem;
+            margin-right: 5px;
+        }
+
         input[type="password"],
         input[type="text"] {
             width: 100%;
@@ -830,7 +883,12 @@
             <div class="panel">
                 <div class="panel-label">📊 Hint Log</div>
                 <div id="hint-log" class="hint-box">
-                    Gathering tick intelligence... Need 20 more data points for reliable signals.
+                    <div id="hint-current" class="hint-current">Gathering tick intelligence... Need 20 more data points for reliable signals.</div>
+                    <div class="hint-history-header">
+                        <span>EVENT HISTORY</span>
+                        <button class="hint-clear" type="button" onclick="clearHintHistory()">CLEAR</button>
+                    </div>
+                    <div id="hint-history-list" class="hint-history-list"></div>
                 </div>
             </div>
 
@@ -989,7 +1047,7 @@
 
     function toggleAutoTrading(enabled) {
         if (emergencyStopped && enabled) {
-            document.getElementById('hint-log').innerText = 'TRADE BLOCKED: Reset the page after an emergency stop.';
+            setHint('TRADE BLOCKED: Reset the page after an emergency stop.');
             document.getElementById('autotrade-toggle').checked = false;
             return;
         }
@@ -1016,13 +1074,13 @@
     function startAutoTrading() {
         toggleAutoTrading(true);
         document.getElementById('autotrade-toggle').checked = true;
-        document.getElementById('hint-log').innerText = `Automatic trading armed for up to ${autoTradeLimit} trade${autoTradeLimit === 1 ? '' : 's'}. It will wait for authorization, risk acknowledgement, and ${confidenceThreshold}% confidence.`;
+        setHint(`Automatic trading armed for up to ${autoTradeLimit} trade${autoTradeLimit === 1 ? '' : 's'}. It will wait for authorization, risk acknowledgement, and ${confidenceThreshold}% confidence.`);
     }
 
     function stopAutoTrading() {
         toggleAutoTrading(false);
         document.getElementById('autotrade-toggle').checked = false;
-        document.getElementById('hint-log').innerText = 'Automatic trading stopped.';
+        setHint('Automatic trading stopped.');
     }
 
     function getTradeSettings() {
@@ -1056,7 +1114,7 @@
     function requestTradeProposal(isAutomatic) {
         const error = validateTradeSettings();
         if (error) {
-            document.getElementById('hint-log').innerText = `TRADE BLOCKED: ${error}`;
+            setHint(`TRADE BLOCKED: ${error}`);
             return;
         }
         if (tradeInFlight || (isAutomatic && !canPlaceAutomaticTrade())) return;
@@ -1077,14 +1135,14 @@
         }
         apiWs.send(JSON.stringify(proposal));
         apiWs.pendingAutomaticTrade = isAutomatic;
-        document.getElementById('hint-log').innerText = 'Proposal requested. Waiting for Deriv pricing...';
+        setHint('Proposal requested. Waiting for Deriv pricing...');
     }
 
     function confirmTrade() {
         if (!pendingProposal || !apiWs || apiWs.readyState !== WebSocket.OPEN) return;
         apiWs.send(JSON.stringify({ buy: pendingProposal.id, price: pendingProposal.askPrice }));
         document.getElementById('confirm-trade').style.display = 'none';
-        document.getElementById('hint-log').innerText = 'Buy request sent to Deriv.';
+        setHint('Buy request sent to Deriv.');
         pendingProposal = null;
         lastTradeAt = Date.now();
     }
@@ -1097,13 +1155,13 @@
         document.getElementById('autotrade-toggle').checked = false;
         document.getElementById('autotrade-status').innerText = 'EMERGENCY STOP ACTIVE';
         document.getElementById('autotrade-status').style.color = 'var(--accent-red)';
-        document.getElementById('hint-log').innerText = 'All connections closed and new trades blocked. Reload the page to reset.';
+        setHint('All connections closed and new trades blocked. Reload the page to reset.');
     }
 
     function runBacktest() {
         if (tickHistory.length < 30) {
             document.getElementById('backtest-result').innerText = 'NEED 30 TICKS';
-            document.getElementById('hint-log').innerText = 'Backtest needs at least 30 collected ticks.';
+            setHint('Backtest needs at least 30 collected ticks.');
             return;
         }
         const digits = tickHistory.map(price => parseInt(price.toString().slice(-1), 10));
@@ -1115,7 +1173,7 @@
         }
         const accuracy = ((correct / (digits.length - 11)) * 100).toFixed(0);
         document.getElementById('backtest-result').innerText = `${accuracy}% ACCURACY`;
-        document.getElementById('hint-log').innerText = `Historical Even/Odd backtest: ${accuracy}% accuracy. Past results do not guarantee future outcomes.`;
+        setHint(`Historical Even/Odd backtest: ${accuracy}% accuracy. Past results do not guarantee future outcomes.`);
     }
 
     function updateSession() {
@@ -1154,13 +1212,13 @@
                 subscribe: 1,
                 req_id: 1
             }));
-            document.getElementById('hint-log').innerText = `Connected to ${currentSymbol}. Waiting for market ticks...`;
+            setHint(`Connected to ${currentSymbol}. Waiting for market ticks...`);
         };
 
         ws.onmessage = (event) => {
             const data = JSON.parse(event.data);
             if (data.error) {
-                document.getElementById('hint-log').innerText = `API ERROR: ${data.error.message}`;
+                setHint(`API ERROR: ${data.error.message}`);
                 return;
             }
             if (data.msg_type === 'history') {
@@ -1174,13 +1232,13 @@
         };
 
         ws.onerror = () => {
-            document.getElementById('hint-log').innerText = 'API ERROR: Unable to reach Deriv market data.';
+            setHint('API ERROR: Unable to reach Deriv market data.');
         };
 
         ws.onclose = () => {
             if (isAnalyzing && reconnectAttempts < 5) {
                 reconnectAttempts++;
-                document.getElementById('hint-log').innerText = `Market connection lost. Reconnecting (${reconnectAttempts}/5)...`;
+                setHint(`Market connection lost. Reconnecting (${reconnectAttempts}/5)...`);
                 window.setTimeout(connectWebSocket, Math.min(30000, reconnectAttempts * 2000));
             }
         };
@@ -1214,9 +1272,9 @@
         updateStrategySignals(digits);
 
         if (tickHistory.length < 20) {
-            document.getElementById('hint-log').innerText = `Gathering tick intelligence... Need ${20 - tickHistory.length} more data points for reliable signals.`;
+            setHint(`Gathering tick intelligence... Need ${20 - tickHistory.length} more data points for reliable signals.`);
         } else {
-            document.getElementById('hint-log').innerText = `Engine synchronized with ${currentSymbol}. High statistical deviation detected on coldest digit. Differ model edge active.`;
+            setHint(`Engine synchronized with ${currentSymbol}. High statistical deviation detected on coldest digit. Differ model edge active.`);
         }
     }
 
@@ -1251,7 +1309,7 @@
         const confidence = (probabilities[predictedDigit] * 100).toFixed(0);
         lastModelConfidence = Number(confidence);
         document.getElementById('gauge-val').innerText = `${confidence}%`;
-        document.getElementById('hint-log').innerText = `Neural model predicts digit ${predictedDigit} with ${confidence}% model confidence. This is statistical analysis, not a guarantee.`;
+        setHint(`Neural model predicts digit ${predictedDigit} with ${confidence}% model confidence. This is statistical analysis, not a guarantee.`);
         if (autoTradingEnabled && lastModelConfidence >= confidenceThreshold) requestTradeProposal(true);
         tf.dispose([inputTensor, outputTensor, prediction]);
         neuralTraining = false;
@@ -1386,7 +1444,7 @@
                     confirmTrade();
                 } else {
                     document.getElementById('confirm-trade').style.display = 'block';
-                    document.getElementById('hint-log').innerText = `Proposal ready at ${data.proposal.ask_price} USD. Confirm the buy order to place it.`;
+                    setHint(`Proposal ready at ${data.proposal.ask_price} USD. Confirm the buy order to place it.`);
                 }
                 apiWs.pendingAutomaticTrade = false;
             }
@@ -1394,7 +1452,7 @@
                 tradeInFlight = false;
                 autoTradeCount++;
                 updateTradeCount();
-                document.getElementById('hint-log').innerText = `Trade placed. Contract ID: ${data.buy.contract_id}`;
+                setHint(`Trade placed. Contract ID: ${data.buy.contract_id}`);
                 tradeHistory.push({ id: data.buy.contract_id, status: 'OPEN', profit: 0 });
                 apiWs.send(JSON.stringify({ proposal_open_contract: 1, contract_id: data.buy.contract_id, subscribe: 1 }));
             }
@@ -1407,7 +1465,7 @@
                         trade.status = contract.status || (trade.profit >= 0 ? 'WON' : 'LOST');
                         lossStreak = trade.profit < 0 ? lossStreak + 1 : 0;
                         updateTradeStats();
-                        document.getElementById('hint-log').innerText = `Contract ${trade.status.toLowerCase()}. Result: ${trade.profit.toFixed(2)} USD.`;
+                        setHint(`Contract ${trade.status.toLowerCase()}. Result: ${trade.profit.toFixed(2)} USD.`);
                     }
                 }
 
@@ -1437,6 +1495,23 @@
         };
     }
 
+    function setHint(message) {
+        const current = document.getElementById('hint-current');
+        const history = document.getElementById('hint-history-list');
+        if (!current || !history) return;
+        current.innerText = message;
+        const entry = document.createElement('div');
+        entry.className = 'hint-entry';
+        entry.innerHTML = `<time>${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</time>${message}`;
+        history.prepend(entry);
+        while (history.children.length > 30) history.lastElementChild.remove();
+    }
+
+    function clearHintHistory() {
+        document.getElementById('hint-history-list').innerHTML = '';
+        setHint('Hint history cleared.');
+    }
+
     function clearApiStatus() {
         const status = document.getElementById('api-status');
         if (status.innerText.startsWith('ERROR:') || status.innerText.startsWith('Token')) {
@@ -1461,7 +1536,7 @@
                 document.getElementById('account-balance').innerText = 'UPDATING...';
             })
             .catch(error => {
-                document.getElementById('hint-log').innerText = `ACCOUNT SWITCH FAILED: ${error.message}`;
+                setHint(`ACCOUNT SWITCH FAILED: ${error.message}`);
             });
     }
 
