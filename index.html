@@ -248,6 +248,21 @@
             letter-spacing: 2px;
         }
 
+        .watched-value {
+            color: var(--accent-gold);
+            font-size: 1rem;
+            font-weight: 900;
+        }
+
+        .digit-card.watched {
+            border-color: var(--accent-gold);
+            box-shadow: inset 0 0 0 1px rgba(255, 214, 0, 0.25);
+        }
+
+        .digit-card.watched .digit-num {
+            color: var(--accent-gold);
+        }
+
         .panel-label {
             font-size: 0.72rem;
             color: var(--text-muted);
@@ -950,6 +965,10 @@
                         <span class="context-label">LAST DIGIT SEQ</span>
                         <span id="digit-sequence" class="context-value sequence-value">---</span>
                     </div>
+                    <div class="context-row">
+                        <span id="watched-label" class="context-label">WATCHING DIGIT</span>
+                        <span id="watched-value" class="watched-value">-</span>
+                    </div>
                 </div>
                 <div class="signal-gauge" style="justify-self: center;">
                     <div id="gauge-val" class="gauge-value">-</div>
@@ -982,21 +1001,21 @@
                 <div id="selected-method" class="selected-method">ACTIVE METHOD: EVEN / ODD</div>
                 <div class="strategy-grid">
                     <div>
-                        <div style="font-size: 0.68rem; color: var(--text-muted); margin-bottom: 8px;">EVEN / ODD BIAS</div>
+                            <div id="signal-label-one" style="font-size: 0.68rem; color: var(--text-muted); margin-bottom: 8px;">EVEN / ODD BIAS</div>
                         <div class="signal-box">
                             <span id="evenodd-val" class="val">---</span>
                             <span id="evenodd-dot" class="status-dot"></span>
                         </div>
                     </div>
                     <div>
-                        <div style="font-size: 0.68rem; color: var(--text-muted); margin-bottom: 8px;">OVER / UNDER 5</div>
+                            <div id="signal-label-two" style="font-size: 0.68rem; color: var(--text-muted); margin-bottom: 8px;">OVER / UNDER 5</div>
                         <div class="signal-box">
                             <span id="overunder-val" class="val">---</span>
                             <span id="overunder-dot" class="status-dot"></span>
                         </div>
                     </div>
                     <div>
-                        <div style="font-size: 0.68rem; color: var(--text-muted); margin-bottom: 8px;">MATCHES STRENGTH</div>
+                            <div id="signal-label-three" style="font-size: 0.68rem; color: var(--text-muted); margin-bottom: 8px;">MATCHES STRENGTH</div>
                         <div class="signal-box">
                             <span id="matches-val" class="val">LOW</span>
                             <span id="matches-dot" class="status-dot" style="background: var(--accent-green);"></span>
@@ -1064,8 +1083,11 @@
                             <option value="DIGITODD">Odd</option>
                             <option value="DIGITOVER">Over</option>
                             <option value="DIGITUNDER">Under</option>
+                            <option value="DIGITMATCH">Match</option>
+                            <option value="DIGITDIFF">Differ</option>
                             <option value="CALL">Rise</option>
                             <option value="PUT">Fall</option>
+                            <option value="ACCU">Accum</option>
                         </select>
                     </label>
                     <label>BARRIER
@@ -1247,7 +1269,24 @@
             'accum': 'ACCUM'
         };
         document.getElementById('selected-method').innerText = `ACTIVE METHOD: ${labels[method]}`;
+        updateMethodPresentation();
         updateStrategySignals();
+    }
+
+    function updateMethodPresentation() {
+        const presentation = {
+            'over-under': { first: 'OVER / UNDER BIAS', second: 'BARRIER TARGET', third: 'DISTANCE FROM BARRIER', contract: 'DIGITOVER', watchLabel: 'WATCHING BARRIER' },
+            'even-odd': { first: 'EVEN / ODD BIAS', second: 'OVER / UNDER 5', third: 'MATCHES STRENGTH', contract: 'DIGITEVEN', watchLabel: 'WATCHING DIGIT' },
+            'match-differ': { first: 'MATCH / DIFFER BIAS', second: 'LAST DIGIT', third: 'MATCH FREQUENCY', contract: 'DIGITMATCH', watchLabel: 'WATCHING DIGIT' },
+            'rise-fall': { first: 'RISE / FALL BIAS', second: 'PRICE DELTA', third: 'TREND STRENGTH', contract: 'CALL', watchLabel: 'WATCHING TREND' },
+            'accum': { first: 'ACCUM ACTIVITY', second: 'PRICE RANGE', third: 'VOLATILITY', contract: 'ACCU', watchLabel: 'WATCHING RANGE' }
+        }[selectedMethod];
+        document.getElementById('signal-label-one').innerText = presentation.first;
+        document.getElementById('signal-label-two').innerText = presentation.second;
+        document.getElementById('signal-label-three').innerText = presentation.third;
+        document.getElementById('watched-label').innerText = presentation.watchLabel;
+        document.getElementById('contract-type').value = presentation.contract;
+        updateWatchedTarget();
     }
 
     function setTradeLimit(value) {
@@ -1619,16 +1658,39 @@
         const range = priceValues.length ? Math.max(...priceValues) - Math.min(...priceValues) : 0;
         const average = priceValues.length ? priceValues.reduce((total, price) => total + price, 0) / priceValues.length : 0;
         const rangePct = average ? ((range / average) * 100).toFixed(2) : '0.00';
+        const priceDelta = priceValues.length > 1 ? priceValues[priceValues.length - 1] - priceValues[priceValues.length - 2] : 0;
 
-        document.getElementById('evenodd-val').innerText = selectedMethod === 'even-odd' ? evenOddValue : `${evenPct}% EVEN`;
-        document.getElementById('overunder-val').innerText = selectedMethod === 'over-under' ? overUnderValue : `${over5Pct}% OVER`;
-        document.getElementById('matches-val').innerText = selectedMethod === 'match-differ'
+        updateWatchedTarget(recentDigits, lastDigit, priceDelta, rangePct);
+
+        const signalOne = selectedMethod === 'rise-fall'
+            ? (priceDelta >= 0 ? `RISE ${((rises / trendTotal) * 100).toFixed(0)}%` : `FALL ${((falls / trendTotal) * 100).toFixed(0)}%`)
+            : selectedMethod === 'accum' ? `ACTIVE ${rangePct}%` : selectedMethod === 'match-differ' ? (lastDigit === previousDigit ? 'MATCH' : 'DIFFER') : selectedMethod === 'over-under' ? overUnderValue : evenOddValue;
+        const signalTwo = selectedMethod === 'over-under' ? `BARRIER ${document.getElementById('trade-barrier').value}` : selectedMethod === 'rise-fall' ? `${priceDelta >= 0 ? '+' : ''}${priceDelta.toFixed(3)}` : selectedMethod === 'accum' ? `${rangePct}% RANGE` : selectedMethod === 'match-differ' ? `LAST ${lastDigit}` : overUnderValue;
+        const signalThree = selectedMethod === 'accum' ? (Number(rangePct) >= 0.1 ? `ACTIVE ${rangePct}%` : `CALM ${rangePct}%`) : selectedMethod === 'rise-fall' ? `${((Math.max(rises, falls) / trendTotal) * 100).toFixed(0)}% TREND` : selectedMethod === 'match-differ'
             ? (lastDigit === previousDigit ? `MATCH ${matchPct}%` : `DIFFER ${100 - matchPct}%`)
-            : selectedMethod === 'rise-fall'
-                ? (rises >= falls ? `RISE ${((rises / trendTotal) * 100).toFixed(0)}%` : `FALL ${((falls / trendTotal) * 100).toFixed(0)}%`)
-                : selectedMethod === 'accum'
-                    ? (Number(rangePct) >= 0.1 ? `ACTIVE ${rangePct}%` : `CALM ${rangePct}%`)
-                    : 'LOW';
+            : selectedMethod === 'over-under' ? `${Math.abs(over5Pct - 50)}% EDGE` : 'LOW';
+
+        document.getElementById('evenodd-val').innerText = signalOne;
+        document.getElementById('overunder-val').innerText = signalTwo;
+        document.getElementById('matches-val').innerText = signalThree;
+    }
+
+    function updateWatchedTarget(recentDigits = [], lastDigit = '-', priceDelta = 0, rangePct = '0.00') {
+        const watched = document.getElementById('watched-value');
+        document.querySelectorAll('.digit-card').forEach(card => card.classList.remove('watched'));
+        if (selectedMethod === 'even-odd' || selectedMethod === 'match-differ') {
+            watched.innerText = lastDigit;
+            const card = document.getElementById(`digit-pct-${lastDigit}`);
+            if (card) card.closest('.digit-card').classList.add('watched');
+        } else if (selectedMethod === 'over-under') {
+            watched.innerText = document.getElementById('trade-barrier').value;
+        } else if (selectedMethod === 'rise-fall') {
+            watched.innerText = priceDelta >= 0 ? 'RISE' : 'FALL';
+        } else if (selectedMethod === 'accum') {
+            watched.innerText = `${rangePct}%`;
+        } else {
+            watched.innerText = '-';
+        }
     }
 
     async function connectToken() {
@@ -1861,6 +1923,7 @@
 
     // Initialize layout
     initDigitGrid();
+    updateMethodPresentation();
     updateTradeCount();
     updateTradeStats();
     updateSession();
