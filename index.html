@@ -628,7 +628,8 @@
         .hint-current {
             color: var(--text-main);
             font-size: 0.72rem;
-            line-height: 1.45;
+            line-height: 1.55;
+            font-weight: 600;
             padding-bottom: 10px;
             border-bottom: 1px solid var(--panel-border);
         }
@@ -669,12 +670,26 @@
             border-left: 2px solid var(--panel-border);
             padding-left: 8px;
             font-size: 0.68rem;
-            line-height: 1.35;
+            line-height: 1.5;
+            color: #aab5c6;
+        }
+
+        .hint-entry.error {
+            border-left-color: var(--accent-red);
+        }
+
+        .hint-entry.success {
+            border-left-color: var(--accent-green);
+        }
+
+        .hint-entry.trade {
+            border-left-color: var(--accent-gold);
         }
 
         .hint-entry time {
             color: var(--accent-gold);
             font-size: 0.58rem;
+            font-weight: 700;
             margin-right: 5px;
         }
 
@@ -1500,7 +1515,15 @@
         if (!current || !history) return;
         current.innerText = message;
         const entry = document.createElement('div');
-        entry.className = 'hint-entry';
+        const normalizedMessage = message.toLowerCase();
+        const eventType = normalizedMessage.includes('error') || normalizedMessage.includes('blocked') || normalizedMessage.includes('failed')
+            ? 'error'
+            : normalizedMessage.includes('connected') || normalizedMessage.includes('synchronized') || normalizedMessage.includes('placed')
+                ? 'success'
+                : normalizedMessage.includes('trade') || normalizedMessage.includes('proposal')
+                    ? 'trade'
+                    : '';
+        entry.className = `hint-entry ${eventType}`;
         entry.innerHTML = `<time>${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</time>${message}`;
         history.prepend(entry);
         while (history.children.length > 30) history.lastElementChild.remove();
