@@ -1236,7 +1236,10 @@
         const settings = getTradeSettings();
         const netProfit = tradeHistory.reduce((total, trade) => total + (trade.profit || 0), 0);
         const dailyLoss = Math.max(0, -netProfit);
-        if (!isAuthorized || !apiWs || apiWs.readyState !== WebSocket.OPEN) return 'Connect and authorize your Deriv API token first.';
+        if (!isAuthorized || !apiWs || apiWs.readyState !== WebSocket.OPEN) {
+            const socketState = !apiWs ? 'not created' : ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED'][apiWs.readyState] || 'unknown';
+            return `Trading connection is ${socketState}. Reconnect the API and wait for CONNECTED.`;
+        }
         if (emergencyStopped) return 'Emergency stop is active. Reload the page to reset it.';
         if (Date.now() - lastTradeAt < 3000) return 'Cooldown active. Wait 3 seconds between trades.';
         if (Number.parseFloat(document.getElementById('stop-loss').value) > 0 && netProfit <= -Number.parseFloat(document.getElementById('stop-loss').value)) return 'Stop-loss limit reached.';
@@ -1257,7 +1260,14 @@
             addTradeRecord({ status: 'BLOCKED', detail: error, method: isAutomatic ? 'AUTOMATIC' : 'MANUAL' });
             return;
         }
-        if (tradeInFlight || (isAutomatic && !canPlaceAutomaticTrade())) return;
+        if (tradeInFlight) {
+            addTradeRecord({ status: 'BLOCKED', detail: 'Another proposal is already in progress.', method: isAutomatic ? 'AUTOMATIC' : 'MANUAL' });
+            return;
+        }
+        if (isAutomatic && !canPlaceAutomaticTrade()) {
+            addTradeRecord({ status: 'BLOCKED', detail: 'Automatic trade limit reached.', method: 'AUTOMATIC' });
+            return;
+        }
         const settings = getTradeSettings();
         tradeInFlight = true;
         const proposal = {
