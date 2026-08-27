@@ -890,7 +890,7 @@
 
 <script>
     const API_BASE = 'https://api.derivws.com';
-    const PUBLIC_WS = 'wss://ws.derivws.com/websockets/v3';
+    const PUBLIC_WS = 'wss://api.derivws.com/trading/v1/options/ws/public';
     let ws = null;
     let tickHistory = [];
     let currentSymbol = 'R_25';
@@ -1151,8 +1151,10 @@
                 count: 100,
                 end: "latest",
                 style: "ticks",
-                subscribe: 1
+                subscribe: 1,
+                req_id: 1
             }));
+            document.getElementById('hint-log').innerText = `Connected to ${currentSymbol}. Waiting for market ticks...`;
         };
 
         ws.onmessage = (event) => {
