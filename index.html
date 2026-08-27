@@ -248,7 +248,7 @@
             letter-spacing: 2px;
         }
 
-        .sequence-value .active-digit {
+        .price-hero .active-price-digit {
             color: var(--accent-gold);
             text-decoration: underline;
             text-underline-offset: 3px;
@@ -941,7 +941,7 @@
                 <div>
                     <div class="panel-label">∿ Market Intensity</div>
                     <div class="price-line">
-                        <div id="price-display" class="price-hero">0.000</div>
+                        <div id="price-display" class="price-hero">0.00<span class="active-price-digit">0</span></div>
                         <div id="price-delta" class="price-delta" style="color: var(--accent-green);">+0.000</div>
                     </div>
                     <div class="badge-row" style="margin-top: 10px;">
@@ -1555,12 +1555,15 @@
         if (!tickHistory.length) return;
 
         const currentPrice = latestPrice || tickHistory[tickHistory.length - 1];
+        const priceText = String(currentPrice);
         const previousPrice = tickHistory.length > 1 ? Number(tickHistory[tickHistory.length - 2]) : Number(currentPrice);
         const priceDelta = Number(currentPrice) - previousPrice;
         const deltaElement = document.getElementById('price-delta');
         deltaElement.innerText = `${priceDelta >= 0 ? '+' : ''}${priceDelta.toFixed(3)}`;
         deltaElement.style.color = priceDelta >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
-        document.getElementById('price-display').innerText = currentPrice;
+        document.getElementById('price-display').innerHTML = priceText.length > 1
+            ? `${priceText.slice(0, -1)}<span class="active-price-digit">${priceText.slice(-1)}</span>`
+            : `<span class="active-price-digit">${priceText}</span>`;
         document.getElementById('datapoints-badge').innerText = `DATA POINTS: ${tickHistory.length}`;
         const elapsedSeconds = Math.max(1, (Date.now() - sessionStartedAt) / 1000);
         document.getElementById('tick-speed').innerText = `${(sessionTickCount / elapsedSeconds).toFixed(1)} / sec`;
@@ -1571,9 +1574,7 @@
         digits.forEach(d => counts[d]++);
         const recentDigits = digits.slice(-10);
         const sequence = recentDigits.join('') || '---';
-        document.getElementById('digit-sequence').innerHTML = sequence === '---'
-            ? sequence
-            : `${sequence.slice(0, -1)}<span class="active-digit">${sequence.slice(-1)}</span>`;
+        document.getElementById('digit-sequence').innerText = sequence;
         const lastParity = digits[digits.length - 1] % 2;
         let streak = 0;
         for (let index = digits.length - 1; index >= 0 && digits[index] % 2 === lastParity; index--) streak++;
