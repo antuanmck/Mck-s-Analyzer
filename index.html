@@ -248,19 +248,16 @@
             letter-spacing: 2px;
         }
 
+        .sequence-value .active-digit {
+            color: var(--accent-gold);
+            text-decoration: underline;
+            text-underline-offset: 3px;
+        }
+
         .watched-value {
             color: var(--accent-gold);
             font-size: 1rem;
             font-weight: 900;
-        }
-
-        .digit-card.watched {
-            border-color: var(--accent-gold);
-            box-shadow: inset 0 0 0 1px rgba(255, 214, 0, 0.25);
-        }
-
-        .digit-card.watched .digit-num {
-            color: var(--accent-gold);
         }
 
         .panel-label {
@@ -1573,7 +1570,10 @@
         const counts = Array(10).fill(0);
         digits.forEach(d => counts[d]++);
         const recentDigits = digits.slice(-10);
-        document.getElementById('digit-sequence').innerText = recentDigits.join('') || '---';
+        const sequence = recentDigits.join('') || '---';
+        document.getElementById('digit-sequence').innerHTML = sequence === '---'
+            ? sequence
+            : `${sequence.slice(0, -1)}<span class="active-digit">${sequence.slice(-1)}</span>`;
         const lastParity = digits[digits.length - 1] % 2;
         let streak = 0;
         for (let index = digits.length - 1; index >= 0 && digits[index] % 2 === lastParity; index--) streak++;
@@ -1677,11 +1677,8 @@
 
     function updateWatchedTarget(recentDigits = [], lastDigit = '-', priceDelta = 0, rangePct = '0.00') {
         const watched = document.getElementById('watched-value');
-        document.querySelectorAll('.digit-card').forEach(card => card.classList.remove('watched'));
         if (selectedMethod === 'even-odd' || selectedMethod === 'match-differ') {
             watched.innerText = lastDigit;
-            const card = document.getElementById(`digit-pct-${lastDigit}`);
-            if (card) card.closest('.digit-card').classList.add('watched');
         } else if (selectedMethod === 'over-under') {
             watched.innerText = document.getElementById('trade-barrier').value;
         } else if (selectedMethod === 'rise-fall') {
