@@ -1038,7 +1038,7 @@
         const settings = getTradeSettings();
         const netProfit = tradeHistory.reduce((total, trade) => total + (trade.profit || 0), 0);
         const dailyLoss = Math.max(0, -netProfit);
-        if (!isAuthorized) return 'Connect and authorize your Deriv API token first.';
+        if (!isAuthorized || !apiWs || apiWs.readyState !== WebSocket.OPEN) return 'Connect and authorize your Deriv API token first.';
         if (emergencyStopped) return 'Emergency stop is active. Reload the page to reset it.';
         if (Date.now() - lastTradeAt < 3000) return 'Cooldown active. Wait 3 seconds between trades.';
         if (Number.parseFloat(document.getElementById('stop-loss').value) > 0 && netProfit <= -Number.parseFloat(document.getElementById('stop-loss').value)) return 'Stop-loss limit reached.';
@@ -1359,7 +1359,6 @@
         apiWs.onmessage = (event) => {
             const data = JSON.parse(event.data);
             if (data.error) {
-                isAuthorized = false;
                 tradeInFlight = false;
                 const errorMessage = data.error.message || 'Authorization rejected';
                 status.innerText = errorMessage.toLowerCase().includes('token is invalid')
