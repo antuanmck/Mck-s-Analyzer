@@ -333,31 +333,52 @@
             margin-top: 4px;
         }
 
-        /* Digit Percentage 2x5 Grid */
-        .digit-grid {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 12px;
-        }
-
-        .digit-card {
+        .past-data-box {
             background: var(--card-inner);
             border: 1px solid var(--panel-border);
             border-radius: 8px;
-            padding: 16px 12px;
-            text-align: center;
+            padding: 14px;
         }
 
-        .digit-card .digit-num {
-            font-size: 0.7rem;
+        .past-data-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .past-data-title {
+            color: var(--text-main);
+            font-size: 0.72rem;
+            font-weight: 800;
+        }
+
+        .past-data-sample {
             color: var(--text-muted);
-            font-weight: 700;
-            margin-bottom: 6px;
+            font-size: 0.62rem;
         }
 
-        .digit-card .digit-pct {
-            font-size: 1.25rem;
-            font-weight: 900;
+        .past-data-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+
+        .past-data-item {
+            border-left: 2px solid var(--panel-border);
+            padding: 6px 8px;
+        }
+
+        .past-data-item span {
+            display: block;
+            color: var(--text-muted);
+            font-size: 0.6rem;
+            margin-bottom: 4px;
+        }
+
+        .past-data-item strong {
+            color: var(--text-main);
+            font-size: 0.86rem;
         }
 
         /* Strategy Signals Grid */
@@ -907,6 +928,10 @@
                 border-bottom: 1px solid var(--panel-border);
                 padding: 12px 0;
             }
+
+            .past-data-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
         }
     </style>
 </head>
@@ -973,10 +998,18 @@
                 </div>
             </div>
 
-            <!-- Digit 0-9 Distribution Grid -->
+            <!-- Selected Method Historical Data -->
             <div class="panel">
-                <div id="digit-grid" class="digit-grid">
-                    <!-- Dynamic rendering of digits 0-9 -->
+                <div class="past-data-box">
+                    <div class="past-data-header">
+                        <span id="past-data-title" class="past-data-title">EVEN / ODD PAST DATA</span>
+                        <span id="past-data-sample" class="past-data-sample">0 TICKS</span>
+                    </div>
+                    <div id="past-data-grid" class="past-data-grid">
+                        <div class="past-data-item"><span>EVEN</span><strong>--</strong></div>
+                        <div class="past-data-item"><span>ODD</span><strong>--</strong></div>
+                        <div class="past-data-item"><span>LAST STREAK</span><strong>--</strong></div>
+                    </div>
                 </div>
             </div>
 
@@ -1214,16 +1247,7 @@
 
     // Render Initial Grid Framework
     function initDigitGrid() {
-        const grid = document.getElementById('digit-grid');
-        grid.innerHTML = '';
-        for (let i = 0; i < 10; i++) {
-            grid.innerHTML += `
-                <div class="digit-card">
-                    <div class="digit-num">DIGIT ${i}</div>
-                    <div id="digit-pct-${i}" class="digit-pct">0%</div>
-                </div>
-            `;
-        }
+        renderPastData();
     }
 
     function toggleEngine() {
@@ -1267,6 +1291,7 @@
         };
         document.getElementById('selected-method').innerText = `ACTIVE METHOD: ${labels[method]}`;
         updateMethodPresentation();
+        renderPastData();
         updateStrategySignals();
     }
 
@@ -1581,13 +1606,9 @@
         document.getElementById('streak-counter').innerText = `${streak} ${lastParity === 0 ? 'EVEN' : 'ODD'}`;
         trainNeuralModel(digits);
 
-        let minPct = 100, maxPct = 0;
-        for (let i = 0; i < 10; i++) {
-            const pct = ((counts[i] / digits.length) * 100).toFixed(0);
-            document.getElementById(`digit-pct-${i}`).innerText = `${pct}%`;
-            if (parseFloat(pct) < minPct) minPct = parseFloat(pct);
-            if (parseFloat(pct) > maxPct) maxPct = parseFloat(pct);
-        }
+        let minPct = 100;
+        for (let i = 0; i < 10; i++) minPct = Math.min(minPct, (counts[i] / digits.length) * 100);
+        renderPastData(digits);
 
         // Signal Gauge Output
         const signalStrength = (100 - minPct).toFixed(0);
@@ -1689,6 +1710,41 @@
         } else {
             watched.innerText = '-';
         }
+    }
+
+    function renderPastData(digits = tickHistory.map(price => parseInt(price.toString().slice(-1), 10))) {
+        const title = document.getElementById('past-data-title');
+        const sample = document.getElementById('past-data-sample');
+        const grid = document.getElementById('past-data-grid');
+        if (!title || !sample || !grid) return;
+        sample.innerText = `${digits.length} TICKS`;
+        if (!digits.length) {
+            title.innerText = 'EVEN / ODD PAST DATA';
+            grid.innerHTML = '<div class="past-data-item"><span>EVEN</span><strong>--</strong></div><div class="past-data-item"><span>ODD</span><strong>--</strong></div><div class="past-data-item"><span>LAST STREAK</span><strong>--</strong></div>';
+            return;
+        }
+        const even = digits.filter(digit => digit % 2 === 0).length;
+        const odd = digits.length - even;
+        const over = digits.filter(digit => digit >= 5).length;
+        const recent = digits.slice(-20);
+        const lastDigit = recent[recent.length - 1];
+        let streak = 0;
+        for (let index = recent.length - 1; index >= 0 && recent[index] === lastDigit; index--) streak++;
+        const prices = tickHistory.map(Number).filter(Number.isFinite);
+        const rises = prices.slice(1).filter((price, index) => price > prices[index]).length;
+        const falls = prices.slice(1).filter((price, index) => price < prices[index]).length;
+        const range = prices.length ? Math.max(...prices) - Math.min(...prices) : 0;
+        const average = prices.length ? prices.reduce((total, price) => total + price, 0) / prices.length : 0;
+        const rangePct = average ? ((range / average) * 100).toFixed(2) : '0.00';
+        const data = {
+            'even-odd': ['EVEN', `${even} (${((even / digits.length) * 100).toFixed(0)}%)`, 'ODD', `${odd} (${((odd / digits.length) * 100).toFixed(0)}%)`, 'LAST STREAK', `${streak} ${lastDigit % 2 ? 'ODD' : 'EVEN'}`],
+            'over-under': ['OVER 5', `${over} (${((over / digits.length) * 100).toFixed(0)}%)`, 'UNDER 5', `${digits.length - over} (${(((digits.length - over) / digits.length) * 100).toFixed(0)}%)`, 'BARRIER', document.getElementById('trade-barrier').value],
+            'match-differ': ['MATCHES', `${recent.filter(digit => digit === lastDigit).length}`, 'DIFFERS', `${recent.filter(digit => digit !== lastDigit).length}`, 'LAST DIGIT', lastDigit],
+            'rise-fall': ['RISES', `${rises}`, 'FALLS', `${falls}`, 'DIRECTION', rises >= falls ? 'RISE' : 'FALL'],
+            'accum': ['RANGE', `${range.toFixed(3)}`, 'RANGE %', `${rangePct}%`, 'ACTIVITY', Number(rangePct) >= 0.1 ? 'ACTIVE' : 'CALM']
+        }[selectedMethod];
+        title.innerText = `${selectedMethod.toUpperCase().replace('-', ' / ')} PAST DATA`;
+        grid.innerHTML = [0, 2, 4].map(index => `<div class="past-data-item"><span>${data[index]}</span><strong>${data[index + 1]}</strong></div>`).join('');
     }
 
     async function connectToken() {
