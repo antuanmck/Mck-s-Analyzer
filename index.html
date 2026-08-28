@@ -243,11 +243,6 @@
             text-align: right;
         }
 
-        .sequence-value {
-            color: var(--accent-blue);
-            letter-spacing: 2px;
-        }
-
         .price-hero .active-price-digit {
             color: var(--accent-gold);
             text-decoration: underline;
@@ -362,6 +357,67 @@
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 8px;
+        }
+
+        .past-sequence-label {
+            color: var(--text-muted);
+            font-size: 0.61rem;
+            font-weight: 700;
+            margin: 14px 0 7px;
+        }
+
+        .past-sequence {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+
+        .sequence-token {
+            min-width: 25px;
+            height: 25px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--panel-border);
+            border-radius: 5px;
+            color: var(--text-main);
+            font-size: 0.65rem;
+            font-weight: 800;
+        }
+
+        .sequence-token.even,
+        .sequence-token.rise,
+        .sequence-token.active {
+            color: var(--accent-green);
+            border-color: rgba(0, 230, 118, 0.45);
+            background: rgba(0, 230, 118, 0.08);
+        }
+
+        .sequence-token.odd,
+        .sequence-token.fall,
+        .sequence-token.calm {
+            color: var(--accent-red);
+            border-color: rgba(255, 82, 82, 0.4);
+            background: rgba(255, 82, 82, 0.07);
+        }
+
+        .sequence-token.over,
+        .sequence-token.match {
+            color: var(--accent-gold);
+            border-color: rgba(255, 214, 0, 0.45);
+            background: rgba(255, 214, 0, 0.08);
+        }
+
+        .sequence-token.under,
+        .sequence-token.differ {
+            color: var(--accent-blue);
+            border-color: rgba(41, 121, 255, 0.45);
+            background: rgba(41, 121, 255, 0.08);
+        }
+
+        .sequence-token.latest {
+            outline: 1px solid var(--text-main);
+            outline-offset: 1px;
         }
 
         .past-data-item {
@@ -1015,10 +1071,6 @@
                         <span id="streak-counter" class="context-value" style="color: var(--accent-gold);">NONE</span>
                     </div>
                     <div class="context-row">
-                        <span class="context-label">LAST DIGIT SEQ</span>
-                        <span id="digit-sequence" class="context-value sequence-value">---</span>
-                    </div>
-                    <div class="context-row">
                         <span id="watched-label" class="context-label">WATCHING DIGIT</span>
                         <span id="watched-value" class="watched-value">-</span>
                     </div>
@@ -1041,6 +1093,8 @@
                         <div class="past-data-item"><span>ODD</span><strong>--</strong></div>
                         <div class="past-data-item"><span>LAST STREAK</span><strong>--</strong></div>
                     </div>
+                    <div id="past-sequence-label" class="past-sequence-label">LAST DIGIT HISTORY</div>
+                    <div id="past-sequence" class="past-sequence"><span class="sequence-token">--</span></div>
                 </div>
             </div>
 
@@ -1765,11 +1819,15 @@
         const title = document.getElementById('past-data-title');
         const sample = document.getElementById('past-data-sample');
         const grid = document.getElementById('past-data-grid');
+        const sequenceLabel = document.getElementById('past-sequence-label');
+        const sequenceBox = document.getElementById('past-sequence');
         if (!title || !sample || !grid) return;
         sample.innerText = `${digits.length} TICKS`;
         if (!digits.length) {
             title.innerText = 'EVEN / ODD PAST DATA';
             grid.innerHTML = '<div class="past-data-item"><span>EVEN</span><strong>--</strong></div><div class="past-data-item"><span>ODD</span><strong>--</strong></div><div class="past-data-item"><span>LAST STREAK</span><strong>--</strong></div>';
+            sequenceLabel.innerText = 'LAST DIGIT HISTORY';
+            sequenceBox.innerHTML = '<span class="sequence-token">--</span>';
             return;
         }
         const even = digits.filter(digit => digit % 2 === 0).length;
@@ -1794,6 +1852,18 @@
         }[selectedMethod];
         title.innerText = `${selectedMethod.toUpperCase().replace('-', ' / ')} PAST DATA`;
         grid.innerHTML = [0, 2, 4].map(index => `<div class="past-data-item"><span>${data[index]}</span><strong>${data[index + 1]}</strong></div>`).join('');
+        const sequenceEntries = getMethodSequence(digits, prices, document.getElementById('trade-barrier').value);
+        sequenceLabel.innerText = `${selectedMethod.toUpperCase().replace('-', ' / ')} HISTORY · LAST ${sequenceEntries.length}`;
+        sequenceBox.innerHTML = sequenceEntries.map((entry, index) => `<span class="sequence-token ${entry.type} ${index === sequenceEntries.length - 1 ? 'latest' : ''}" title="${entry.title}">${entry.value}</span>`).join('');
+    }
+
+    function getMethodSequence(digits, prices, barrier) {
+        const recentDigits = digits.slice(-30);
+        if (selectedMethod === 'even-odd') return recentDigits.map(digit => ({ value: digit, type: digit % 2 ? 'odd' : 'even', title: digit % 2 ? 'Odd' : 'Even' }));
+        if (selectedMethod === 'over-under') return recentDigits.map(digit => ({ value: digit >= Number(barrier) ? 'O' : 'U', type: digit >= Number(barrier) ? 'over' : 'under', title: `${digit} ${digit >= Number(barrier) ? 'over' : 'under'} barrier ${barrier}` }));
+        if (selectedMethod === 'match-differ') return recentDigits.map((digit, index) => ({ value: index && digit === recentDigits[index - 1] ? 'M' : 'D', type: index && digit === recentDigits[index - 1] ? 'match' : 'differ', title: index && digit === recentDigits[index - 1] ? 'Match with previous digit' : 'Different from previous digit' }));
+        if (selectedMethod === 'rise-fall') return prices.slice(-30).map((price, index, values) => ({ value: index && price >= values[index - 1] ? 'R' : 'F', type: index && price >= values[index - 1] ? 'rise' : 'fall', title: index && price >= values[index - 1] ? 'Price rose' : 'Price fell' }));
+        return prices.slice(-30).map((price, index, values) => ({ value: index && Math.abs(price - values[index - 1]) > 0 ? 'A' : 'C', type: index && Math.abs(price - values[index - 1]) > 0 ? 'active' : 'calm', title: index && Math.abs(price - values[index - 1]) > 0 ? 'Price moved' : 'Price unchanged' }));
     }
 
     async function connectToken() {
